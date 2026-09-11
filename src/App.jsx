@@ -10,7 +10,8 @@ import {
   User, 
   ChevronDown,
   Menu,
-  Users
+  Users,
+  FileSpreadsheet
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
@@ -19,6 +20,7 @@ import ProjectModal from "./components/ProjectModal";
 import ShareProjectModal from "./components/ShareProjectModal";
 import UserProfileModal from "./components/UserProfileModal";
 import MobileDrawerMenu from "./components/MobileDrawerMenu";
+import ExcelImportModal from "./components/ExcelImportModal";
 
 import { DEFAULT_COLUMNS, PRIORITIES, ISSUE_TYPES, getInitialTasks } from "./types/constants";
 import { 
@@ -63,6 +65,7 @@ export default function App() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const getUrlProjectId = () => {
     const params = new URLSearchParams(window.location.search);
@@ -335,6 +338,57 @@ export default function App() {
     }
   };
 
+  const handleImportTasks = async (newTasksList) => {
+    if (!currentProject) return;
+
+    // Detect new assignees from the imported list and auto-add to project members
+    const existingMemberNames = new Set((currentProject.members || []).map(m => m.name.toLowerCase()));
+    const newMembersToAdd = [];
+
+    newTasksList.forEach(t => {
+      if (t.assignee && t.assignee !== "Sin asignar" && !existingMemberNames.has(t.assignee.toLowerCase())) {
+        existingMemberNames.add(t.assignee.toLowerCase());
+        newMembersToAdd.push({
+          id: "usr_" + Math.random().toString(36).substring(2, 8),
+          name: t.assignee,
+          email: ""
+        });
+      }
+    });
+
+    if (isFirebaseConnected) {
+      const db = initFirebase();
+      if (db) {
+        // Add tasks to Firestore
+        for (const task of newTasksList) {
+          await addDoc(collection(db, "tasks"), task);
+        }
+
+        // Update project members if new members found
+        if (newMembersToAdd.length > 0) {
+          const projDoc = doc(db, "projects", currentProject.id);
+          for (const mem of newMembersToAdd) {
+            await updateDoc(projDoc, {
+              members: arrayUnion(mem)
+            });
+          }
+        }
+      }
+    } else {
+      const merged = [...newTasksList, ...tasks];
+      updateTasksState(merged);
+
+      if (newMembersToAdd.length > 0) {
+        const updatedMembers = [...(currentProject.members || []), ...newMembersToAdd];
+        const updatedProj = { ...currentProject, members: updatedMembers };
+        const updatedProjects = projects.map(p => p.id === currentProject.id ? updatedProj : p);
+        setProjects(updatedProjects);
+        setCurrentProject(updatedProj);
+        saveLocalProjects(updatedProjects);
+      }
+    }
+  };
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -524,6 +578,7 @@ export default function App() {
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenDbModal={() => setIsDbModalOpen(true)}
+        onOpenImportModal={() => setIsImportModalOpen(true)}
         currentUser={currentUser}
         isFirebaseConnected={isFirebaseConnected}
         searchTerm={searchTerm}
@@ -598,17 +653,28 @@ export default function App() {
             </div>
           </div>
 
-          {/* Botón Crear Tarea en Desktop */}
-          <button
-            onClick={() => {
-              setTaskToEdit(null);
-              setIsTaskModalOpen(true);
-            }}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Nueva Tarea</span>
-          </button>
+          {/* Botones de Acción en Desktop */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Importar o migrar tareas desde Excel / CSV"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Importar Excel</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setTaskToEdit(null);
+                setIsTaskModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Nueva Tarea</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -766,6 +832,15 @@ export default function App() {
         isOpen={isDbModalOpen}
         onClose={() => setIsDbModalOpen(false)}
         onConfigSaved={initializeWorkspace}
+      />
+ 
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        currentProject={currentProject}
+        currentUser={currentUser}
+        existingTasksCount={tasks.length}
+        onImportTasks={handleImportTasks}
       />
     </div>
   );
