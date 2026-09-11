@@ -1,0 +1,7 @@
+﻿Título,Descripción,Estado,Prioridad,Tipo,Asignado,Fecha Límite,Enlace Referencia,Etiquetas
+Diseñar interfaz de inicio de sesión con Google,Implementar modal con soporte para 1-Click con Google y Email,Completado,Alta,Historia,Alex Vásquez,2026-09-15,https://firebase.google.com/docs/auth,"Frontend, Auth, UI"
+Configurar base de datos Firestore en la nube,Crear colecciones de tareas y proyectos con reglas de seguridad,Completado,Urgente,Tarea,Alex Vásquez,2026-09-12,https://console.firebase.google.com,"Backend, Database"
+Corregir parpadeo al arrastrar tarjetas en móvil,Ajustar transiciones CSS en dispositivos táctiles pequeños,En Progreso,Media,Bug / Error,Carlos Dev,2026-09-20,,"Mobile, Bug, CSS"
+Integrar soporte para pegar capturas con Ctrl + V,Permitir pegar imágenes desde el portapapeles y previsualizarlas en grande,Completado,Alta,Mejora,Alex Vásquez,2026-09-18,,"UX, Images"
+Pruebas de carga y validación de permisos de edición,Verificar que solo el creador pueda editar el cuerpo o borrar la tarea,En Revisión,Alta,Tarea,Ana QA,2026-09-22,,"QA, Testing, Security"
+Redactar manual de usuario y despliegue en Vercel,Documentar cómo vincular el repositorio de GitHub con Vercel para CI/CD,Por Hacer,Baja,Tarea,Sin asignar,2026-09-30,https://vercel.com/docs,"Docs, DevOps"
