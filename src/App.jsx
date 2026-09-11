@@ -783,6 +783,11 @@ export default function App() {
             <span className="text-slate-500">•</span>
             <span>Proyecto: <strong className="text-sky-300 truncate max-w-[150px] inline-block align-bottom">{currentProject?.name}</strong></span>
           </div>
+
+          <div className="text-slate-400 text-[11px] sm:text-xs font-medium">
+            Hecho con ❤️ por <span className="text-white font-bold">Marvin Vásquez</span>
+          </div>
+
           <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
             <span>👥 {(currentProject?.members || []).length} miembros</span>
             <span className="text-slate-500">•</span>

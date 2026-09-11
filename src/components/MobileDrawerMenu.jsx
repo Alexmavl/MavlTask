@@ -189,30 +189,35 @@ export default function MobileDrawerMenu({
         </div>
 
         {/* Footer Drawer */}
-        <div className="pt-3 border-t border-[#1e3a5f] flex items-center justify-between">
-          <button
-            onClick={() => { onClose(); onOpenProfileModal(); }}
-            className="flex items-center gap-2 text-xs text-slate-300 hover:text-white"
-          >
-            {currentUser.photoURL ? (
-              <img
-                src={currentUser.photoURL}
-                alt={currentUser.name}
-                className="w-7 h-7 rounded-full object-cover border border-blue-400"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-[11px]">
-                {(currentUser.name || "U").substring(0, 2).toUpperCase()}
-              </div>
-            )}
-            <span className="font-semibold truncate max-w-[100px]">{currentUser.name}</span>
-          </button>
-          <button
-            onClick={() => { onClose(); onOpenDbModal(); }}
-            className="text-xs text-sky-400 hover:underline"
-          >
-            {isFirebaseConnected ? "Firebase 🔥" : "Local 💾"}
-          </button>
+        <div className="pt-3 border-t border-[#1e3a5f] space-y-2">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => { onClose(); onOpenProfileModal(); }}
+              className="flex items-center gap-2 text-xs text-slate-300 hover:text-white"
+            >
+              {currentUser.photoURL ? (
+                <img
+                  src={currentUser.photoURL}
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-full object-cover border border-blue-400"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-[11px]">
+                  {(currentUser.name || "U").substring(0, 2).toUpperCase()}
+                </div>
+              )}
+              <span className="font-semibold truncate max-w-[100px]">{currentUser.name}</span>
+            </button>
+            <button
+              onClick={() => { onClose(); onOpenDbModal(); }}
+              className="text-xs text-sky-400 hover:underline"
+            >
+              {isFirebaseConnected ? "Firebase 🔥" : "Local 💾"}
+            </button>
+          </div>
+          <div className="text-center text-[10px] text-slate-400 pt-1 border-t border-[#1e3a5f]/60">
+            Hecho con ❤️ por <span className="text-slate-200 font-semibold">Marvin Vásquez</span>
+          </div>
         </div>
       </div>
     </div>
