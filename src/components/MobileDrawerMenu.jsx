@@ -216,7 +216,7 @@ export default function MobileDrawerMenu({
             </button>
           </div>
           <div className="text-center text-[10px] text-slate-400 pt-1 border-t border-[#1e3a5f]/60">
-            Hecho con ❤️ por <span className="text-slate-200 font-semibold">Marvin Vásquez</span>
+            Desarrollado con ❤️ por <span className="text-slate-200 font-semibold">Marvin Vásquez</span>
           </div>
         </div>
       </div>

@@ -785,7 +785,7 @@ export default function App() {
           </div>
 
           <div className="text-slate-400 text-[11px] sm:text-xs font-medium">
-            Hecho con ❤️ por <span className="text-white font-bold">Marvin Vásquez</span>
+            Desarrollado con ❤️ por <span className="text-white font-bold">Marvin Vásquez</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-slate-300">
