@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Share2, Copy, Check, Users, UserPlus, Link as LinkIcon } from "lucide-react";
 
-export default function ShareProjectModal({ isOpen, onClose, project, onAddMember }) {
+export default function ShareProjectModal({ isOpen, onClose, project, onAddMember, onRemoveMember, currentUser }) {
   const [copied, setCopied] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
@@ -9,6 +9,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onAddMembe
   if (!isOpen || !project) return null;
 
   const inviteUrl = `${window.location.origin}${window.location.pathname}?project=${project.id}`;
+  const isOwner = currentUser?.id === project.ownerId;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteUrl);
@@ -40,7 +41,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onAddMembe
           <div className="flex items-center gap-2">
             <Share2 className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-bold text-slate-800">
-              Invitar y Compartir: <span className="text-blue-600">{project.name}</span>
+              Gestión de Equipo: <span className="text-blue-600">{project.name}</span>
             </h3>
           </div>
           <button
@@ -92,25 +93,47 @@ export default function ShareProjectModal({ isOpen, onClose, project, onAddMembe
             </label>
             
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-              {(project.members || []).map((m, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center font-bold text-white text-[11px]">
-                      {m.name.substring(0, 2).toUpperCase()}
+              {(project.members || []).map((m, idx) => {
+                const isUserOwner = m.id === project.ownerId;
+                return (
+                  <div 
+                    key={idx} 
+                    className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs hover:bg-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center font-bold text-white text-[11px]">
+                        {m.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800">
+                          {m.name} {m.id === currentUser?.id ? "(Tú)" : ""}
+                        </p>
+                        {m.email && <p className="text-[10px] text-slate-500">{m.email}</p>}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">{m.name}</p>
-                      {m.email && <p className="text-[10px] text-slate-500">{m.email}</p>}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                        isUserOwner ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}>
+                        {isUserOwner ? "Dueño" : "Miembro"}
+                      </span>
+                      {isOwner && !isUserOwner && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Seguro que deseas desvincular a ${m.name} del proyecto?`)) {
+                              onRemoveMember(m.id);
+                            }
+                          }}
+                          className="p-1 text-rose-500 hover:bg-rose-100 hover:text-rose-700 rounded-lg transition-colors"
+                          title="Desvincular usuario"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                    Miembro
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

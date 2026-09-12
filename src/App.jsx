@@ -266,6 +266,28 @@ export default function App() {
     }
   };
 
+  const handleRemoveMember = async (memberId) => {
+    if (!currentProject) return;
+
+    if (isFirebaseConnected) {
+      const db = initFirebase();
+      if (db) {
+        const projDoc = doc(db, "projects", currentProject.id);
+        const updatedMembers = currentProject.members.filter(m => m.id !== memberId);
+        await updateDoc(projDoc, {
+          members: updatedMembers
+        });
+      }
+    } else {
+      const updatedMembers = currentProject.members.filter(m => m.id !== memberId);
+      const updatedProj = { ...currentProject, members: updatedMembers };
+      const updatedProjects = projects.map(p => p.id === currentProject.id ? updatedProj : p);
+      setProjects(updatedProjects);
+      setCurrentProject(updatedProj);
+      saveLocalProjects(updatedProjects);
+    }
+  };
+
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
 
@@ -880,6 +902,8 @@ export default function App() {
         onClose={() => setIsShareModalOpen(false)}
         project={currentProject}
         onAddMember={handleAddMember}
+        onRemoveMember={handleRemoveMember}
+        currentUser={currentUser}
       />
 
       <UserProfileModal
