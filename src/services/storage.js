@@ -53,24 +53,15 @@ export function saveUserProfile(user) {
 
 // 2. Firebase Config
 export function getStoredFirebaseConfig() {
-  if (import.meta.env.VITE_FIREBASE_API_KEY && import.meta.env.VITE_FIREBASE_PROJECT_ID) {
-    return {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID
-    };
-  }
-
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
+  return {
+    apiKey: "AIzaSyC-f2QALkcWgDV43Q2QEymbScB04u0TYP4",
+    authDomain: "mavltask.firebaseapp.com",
+    projectId: "mavltask",
+    storageBucket: "mavltask.firebasestorage.app",
+    messagingSenderId: "726030520857",
+    appId: "1:726030520857:web:7832a784d961d78dcb1088",
+    measurementId: "G-485JPDG8SS"
+  };
 }
 
 export function saveFirebaseConfig(config) {
@@ -133,7 +124,7 @@ export function subscribeToAuth(callback) {
 
 export async function loginWithGoogle() {
   const { auth } = getFirebaseServices();
-  if (!auth) throw new Error("Firebase no está configurado. Conéctalo desde el botón de Base de Datos.");
+  if (!auth) throw new Error("Firebase no está configurado correctamente.");
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   const result = await signInWithPopup(auth, provider);
@@ -152,7 +143,7 @@ export async function loginWithGoogle() {
 
 export async function loginWithEmail(email, password) {
   const { auth } = getFirebaseServices();
-  if (!auth) throw new Error("Firebase no está configurado. Conéctalo desde el botón de Base de Datos.");
+  if (!auth) throw new Error("Firebase no está configurado correctamente.");
   const result = await signInWithEmailAndPassword(auth, email, password);
   const u = result.user;
   const userProfile = {
@@ -169,7 +160,7 @@ export async function loginWithEmail(email, password) {
 
 export async function registerWithEmail(email, password, displayName) {
   const { auth } = getFirebaseServices();
-  if (!auth) throw new Error("Firebase no está configurado. Conéctalo desde el botón de Base de Datos.");
+  if (!auth) throw new Error("Firebase no está configurado correctamente.");
   const result = await createUserWithEmailAndPassword(auth, email, password);
   const u = result.user;
   if (displayName && u) {

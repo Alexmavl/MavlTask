@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
-import FirebaseConfigModal from "./components/FirebaseConfigModal";
+
 import ProjectModal from "./components/ProjectModal";
 import ShareProjectModal from "./components/ShareProjectModal";
 import UserProfileModal from "./components/UserProfileModal";
@@ -61,7 +61,7 @@ export default function App() {
   // Modales
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
-  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -530,17 +530,7 @@ export default function App() {
 
           {/* Acciones de Derecha: Firebase y Perfil */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsDbModalOpen(true)}
-              className={`p-1.5 rounded-xl border transition-colors shrink-0 ${
-                isFirebaseConnected
-                  ? "bg-amber-500/20 border-amber-400/40 text-amber-300"
-                  : "bg-[#1e3e62]/70 border-blue-400/30 text-slate-300 hover:bg-[#1e3e62]"
-              }`}
-              title={isFirebaseConnected ? "Firebase Conectado" : "Modo Local"}
-            >
-              <Database className="w-4 h-4" />
-            </button>
+
 
             <button
               onClick={() => setIsProfileModalOpen(true)}
@@ -577,7 +567,7 @@ export default function App() {
         onOpenProjectModal={() => setIsProjectModalOpen(true)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
-        onOpenDbModal={() => setIsDbModalOpen(true)}
+
         onOpenImportModal={() => setIsImportModalOpen(true)}
         currentUser={currentUser}
         isFirebaseConnected={isFirebaseConnected}
@@ -824,7 +814,7 @@ export default function App() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         isFirebaseConnected={isFirebaseConnected}
-        onOpenDbModal={() => setIsDbModalOpen(true)}
+
         onProfileUpdated={(u) => {
           setCurrentUser(u);
           if (currentProject) {
@@ -833,12 +823,7 @@ export default function App() {
         }}
       />
 
-      <FirebaseConfigModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-        onConfigSaved={initializeWorkspace}
-      />
- 
+
       <ExcelImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}

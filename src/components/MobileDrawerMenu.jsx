@@ -11,7 +11,6 @@ export default function MobileDrawerMenu({
   onOpenProjectModal,
   onOpenShareModal,
   onOpenProfileModal,
-  onOpenDbModal,
   onOpenImportModal,
   currentUser,
   isFirebaseConnected,
@@ -208,12 +207,9 @@ export default function MobileDrawerMenu({
               )}
               <span className="font-semibold truncate max-w-[100px]">{currentUser.name}</span>
             </button>
-            <button
-              onClick={() => { onClose(); onOpenDbModal(); }}
-              className="text-xs text-sky-400 hover:underline"
-            >
+            <span className="text-xs text-sky-400">
               {isFirebaseConnected ? "Firebase 🔥" : "Local 💾"}
-            </button>
+            </span>
           </div>
           <div className="text-center text-[10px] text-slate-400 pt-1 border-t border-[#1e3a5f]/60">
             Desarrollado con ❤️ por <span className="text-slate-200 font-semibold">Marvin Vásquez</span>

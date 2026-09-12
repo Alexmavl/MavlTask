@@ -1,5 +1,7 @@
 # MavlTask - Collaborative Jira-like Kanban System
 
+🔗 **Aplicación en vivo:** [https://mavl-task.vercel.app](https://mavl-task.vercel.app)
+
 Sistema colaborativo de gestión de tareas e incidencias ágiles con soporte para múltiples proyectos, sincronización en tiempo real con Firebase Firestore & Authentication (Google 1-Click + Email), subida de capturas por portapapeles (Ctrl+V) y drag & drop, sección de comentarios y enlaces de referencia.
 
 ---

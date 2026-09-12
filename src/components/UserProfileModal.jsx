@@ -13,8 +13,7 @@ export default function UserProfileModal({
   onClose, 
   currentUser, 
   onProfileUpdated,
-  isFirebaseConnected,
-  onOpenDbModal
+  isFirebaseConnected
 }) {
   const [authTab, setAuthTab] = useState("profile"); // 'profile' | 'email_login' | 'email_register'
   const [name, setName] = useState(currentUser.name || "");
@@ -191,18 +190,7 @@ export default function UserProfileModal({
                 <p className="text-[11px] text-amber-700 leading-normal">
                   Puedes personalizar tu nombre local aquí. Para activar Google 1-Click o usuarios en la nube, conecta Firebase.
                 </p>
-                {onOpenDbModal && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onOpenDbModal();
-                    }}
-                    className="inline-block mt-1 font-bold text-blue-600 hover:underline cursor-pointer"
-                  >
-                    ⚙️ Configurar Firebase ahora →
-                  </button>
-                )}
+
               </div>
             </div>
           )}
