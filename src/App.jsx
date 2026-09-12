@@ -24,6 +24,7 @@ import UserProfileModal from "./components/UserProfileModal";
 import MobileDrawerMenu from "./components/MobileDrawerMenu";
 import ExcelImportModal from "./components/ExcelImportModal";
 import ProjectStats from "./components/ProjectStats";
+import UserSelect from "./components/UserSelect";
 import * as XLSX from "xlsx";
 
 import { DEFAULT_COLUMNS, PRIORITIES, ISSUE_TYPES, getInitialTasks } from "./types/constants";
@@ -732,24 +733,14 @@ export default function App() {
               </label>
 
               <div className="relative min-w-[160px] sm:min-w-[190px]">
-                <select
+                <UserSelect
                   value={selectedAssignee}
-                  onChange={(e) => setSelectedAssignee(e.target.value)}
-                  className={`w-full appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    selectedAssignee !== "all"
-                      ? "bg-blue-50 border-blue-300 text-blue-800 shadow-2xs"
-                      : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700"
-                  }`}
-                >
-                  <option value="all">👥 Todos los usuarios</option>
-                  {(currentProject?.members || []).map((m, idx) => (
-                    <option key={idx} value={m.name}>
-                      👤 {m.name} {m.id === currentUser?.id ? "(Tú)" : ""}
-                    </option>
-                  ))}
-                  <option value="Sin asignar">⚪ Sin asignar</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  onChange={setSelectedAssignee}
+                  members={currentProject?.members || []}
+                  currentUser={currentUser}
+                  includeAllOption={true}
+                  className="bg-slate-50 hover:bg-slate-100"
+                />
               </div>
 
               {selectedAssignee !== "all" && (

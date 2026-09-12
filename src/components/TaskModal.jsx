@@ -17,6 +17,7 @@ import {
   Check
 } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES, DEFAULT_COLUMNS } from "../types/constants";
+import UserSelect from "./UserSelect";
 
 export default function TaskModal({ 
   isOpen, 
@@ -510,23 +511,14 @@ export default function TaskModal({
                 Asignado a
               </label>
               {members.length > 0 ? (
-                <select
-                  disabled={!canEditBody}
+                <UserSelect
                   value={formData.assignee}
-                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                  className={`w-full px-3 py-2 rounded-xl border text-sm ${
-                    canEditBody 
-                      ? "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      : "bg-slate-100/70 border-slate-200 text-slate-700 cursor-not-allowed"
-                  }`}
-                >
-                  <option value="Sin asignar">Sin asignar</option>
-                  {members.map((m, i) => (
-                    <option key={i} value={m.name}>
-                      {m.name} {m.id === currentUser?.id ? "(Tú)" : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormData({ ...formData, assignee: val })}
+                  members={members}
+                  currentUser={currentUser}
+                  disabled={!canEditBody}
+                  className={!canEditBody ? "bg-slate-100/70" : "bg-slate-50 hover:bg-white"}
+                />
               ) : (
                 <input
                   type="text"

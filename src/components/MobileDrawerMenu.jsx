@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, FolderKanban, Plus, Share2, Search, Check, FileSpreadsheet, Download } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES } from "../types/constants";
+import UserSelect from "./UserSelect";
 
 export default function MobileDrawerMenu({
   isOpen,
@@ -140,17 +141,14 @@ export default function MobileDrawerMenu({
             {/* Filtro Usuario */}
             <div>
               <label className="block text-[11px] text-slate-400 mb-1">Filtrar por Usuario:</label>
-              <select
+              <UserSelect
                 value={selectedAssignee}
-                onChange={(e) => setSelectedAssignee(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[#10243e] border border-[#20436d] rounded-xl text-slate-200 focus:outline-none"
-              >
-                <option value="all" className="bg-[#0b192c]">Todos los usuarios</option>
-                {(currentProject?.members || []).map((m, i) => (
-                  <option key={i} value={m.name} className="bg-[#0b192c]">👤 {m.name}</option>
-                ))}
-                <option value="Sin asignar" className="bg-[#0b192c]">⚪ Sin asignar</option>
-              </select>
+                onChange={setSelectedAssignee}
+                members={currentProject?.members || []}
+                currentUser={currentUser}
+                includeAllOption={true}
+                darkTheme={true}
+              />
             </div>
 
             {/* Filtro Prioridad */}
