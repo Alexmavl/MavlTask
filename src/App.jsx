@@ -103,22 +103,44 @@ export default function App() {
           if (targetUrlProjId) {
             sharedProject = remoteProjects.find(p => p.id === targetUrlProjId);
             if (sharedProject) {
-              const isMember = sharedProject.members?.some(m => m.id === currentUser.id || m.email === currentUser.email);
+                const isMember = sharedProject.members?.some(m => m.id === currentUser.id || m.email === currentUser.email);
               if (!isMember) {
                 const projDoc = doc(db, "projects", sharedProject.id);
                 updateDoc(projDoc, {
                   members: arrayUnion({
                     id: currentUser.id,
                     name: currentUser.name,
-                    email: currentUser.email || ""
+                    email: currentUser.email || "",
+                    photoURL: currentUser.photoURL || null
                   })
                 }).catch(console.error);
                 
                 // Agregarlo localmente de inmediato para que renderice
                 myProjects.push(sharedProject);
+              } else {
+                // If member exists but missing photoURL, update it (optional self-healing)
+                const existingMember = sharedProject.members.find(m => m.id === currentUser.id);
+                if (existingMember && !existingMember.photoURL && currentUser.photoURL) {
+                  const updatedMembers = sharedProject.members.map(m => 
+                    m.id === currentUser.id ? { ...m, photoURL: currentUser.photoURL } : m
+                  );
+                  updateDoc(doc(db, "projects", sharedProject.id), { members: updatedMembers }).catch(console.error);
+                }
               }
             }
           }
+
+          // Also self-heal myProjects
+          myProjects.forEach(proj => {
+            const existingMember = proj.members?.find(m => m.id === currentUser.id);
+            if (existingMember && !existingMember.photoURL && currentUser.photoURL) {
+              const updatedMembers = proj.members.map(m => 
+                m.id === currentUser.id ? { ...m, photoURL: currentUser.photoURL } : m
+              );
+              updateDoc(doc(db, "projects", proj.id), { members: updatedMembers }).catch(console.error);
+              proj.members = updatedMembers; // mutate local copy for immediate render
+            }
+          });
 
           if (myProjects.length === 0) {
             const defaultP = {
@@ -126,7 +148,7 @@ export default function App() {
               description: "Tablero colaborativo de tareas y sprints",
               key: "MAVL",
               ownerId: currentUser.id,
-              members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "" }],
+              members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "", photoURL: currentUser.photoURL || null }],
               createdAt: new Date().toISOString()
             };
             addDoc(collection(db, "projects"), defaultP);
@@ -146,7 +168,7 @@ export default function App() {
             description: "Tablero colaborativo de tareas y sprints",
             key: "MAVL",
             ownerId: currentUser.id,
-            members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "" }],
+            members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "", photoURL: currentUser.photoURL || null }],
             createdAt: new Date().toISOString()
           };
           addDoc(collection(db, "projects"), defaultP);
@@ -228,7 +250,7 @@ export default function App() {
     const newProj = {
       ...projData,
       ownerId: currentUser.id,
-      members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "" }],
+      members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "", photoURL: currentUser.photoURL || null }],
       createdAt: new Date().toISOString()
     };
 
@@ -251,16 +273,25 @@ export default function App() {
   const handleAddMember = async (newMember) => {
     if (!currentProject) return;
 
+    const existingMemberIndex = (currentProject.members || []).findIndex(m => m.id === newMember.id);
+    let updatedMembers = [...(currentProject.members || [])];
+    
+    if (existingMemberIndex >= 0) {
+      // Si ya existe, actualizamos sus datos para no duplicarlo (ej. al actualizar la foto)
+      updatedMembers[existingMemberIndex] = { ...updatedMembers[existingMemberIndex], ...newMember };
+    } else {
+      updatedMembers.push(newMember);
+    }
+
     if (isFirebaseConnected) {
       const db = initFirebase();
       if (db) {
         const projDoc = doc(db, "projects", currentProject.id);
         await updateDoc(projDoc, {
-          members: arrayUnion(newMember)
+          members: updatedMembers
         });
       }
     } else {
-      const updatedMembers = [...(currentProject.members || []), newMember];
       const updatedProj = { ...currentProject, members: updatedMembers };
       const updatedProjects = projects.map(p => p.id === currentProject.id ? updatedProj : p);
       setProjects(updatedProjects);
