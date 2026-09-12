@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, FolderKanban, Plus, Share2, Search, Check, FileSpreadsheet } from "lucide-react";
+import { X, FolderKanban, Plus, Share2, Search, Check, FileSpreadsheet, Download } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES } from "../types/constants";
 
 export default function MobileDrawerMenu({
@@ -12,6 +12,7 @@ export default function MobileDrawerMenu({
   onOpenShareModal,
   onOpenProfileModal,
   onOpenImportModal,
+  onExportTasks,
   currentUser,
   isFirebaseConnected,
   searchTerm,
@@ -86,28 +87,34 @@ export default function MobileDrawerMenu({
               ))}
             </div>
 
-            <div className="flex gap-2 mt-2.5">
+            <div className="grid grid-cols-2 gap-2 mt-2.5">
               <button
                 onClick={() => { onClose(); onOpenProjectModal(); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1e3e62]/70 hover:bg-[#1e3e62] text-sky-200 border border-blue-400/30 text-xs font-semibold cursor-pointer"
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#1e3e62]/70 hover:bg-[#1e3e62] text-sky-200 border border-blue-400/30 text-xs font-semibold cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Nuevo</span>
               </button>
               <button
-                onClick={() => { onClose(); onOpenImportModal(); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 text-xs font-semibold cursor-pointer"
-                title="Importar Excel o CSV"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Excel</span>
-              </button>
-              <button
                 onClick={() => { onClose(); onOpenShareModal(); }}
-                className="flex items-center justify-center px-3 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 text-xs font-semibold cursor-pointer"
-                title="Invitar compañeros"
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 text-xs font-semibold cursor-pointer"
               >
                 <Share2 className="w-3.5 h-3.5" />
+                <span>Invitar</span>
+              </button>
+              <button
+                onClick={() => { onClose(); onOpenImportModal(); }}
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 text-xs font-semibold cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Importar</span>
+              </button>
+              <button
+                onClick={() => { onClose(); onExportTasks?.(); }}
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-500/20 hover:bg-slate-500/30 text-slate-300 border border-slate-400/30 text-xs font-semibold cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exportar</span>
               </button>
             </div>
           </div>

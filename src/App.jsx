@@ -12,7 +12,8 @@ import {
   Menu,
   Users,
   FileSpreadsheet,
-  BarChart3
+  BarChart3,
+  Download
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
@@ -23,6 +24,7 @@ import UserProfileModal from "./components/UserProfileModal";
 import MobileDrawerMenu from "./components/MobileDrawerMenu";
 import ExcelImportModal from "./components/ExcelImportModal";
 import ProjectStats from "./components/ProjectStats";
+import * as XLSX from "xlsx";
 
 import { DEFAULT_COLUMNS, PRIORITIES, ISSUE_TYPES, getInitialTasks } from "./types/constants";
 import { 
@@ -444,6 +446,35 @@ export default function App() {
     }
   };
 
+  const handleExportTasks = () => {
+    if (!tasks || tasks.length === 0) {
+      alert("No hay tareas para exportar.");
+      return;
+    }
+
+    const exportData = tasks.map(t => ({
+      "ID": t.id,
+      "Título": t.title,
+      "Descripción": t.description || "",
+      "Estado": t.status === "todo" ? "Por Hacer" : t.status === "in_progress" ? "En Progreso" : t.status === "in_review" ? "En Revisión" : "Completado",
+      "Prioridad": t.priority === "urgent" ? "Urgente" : t.priority === "high" ? "Alta" : t.priority === "low" ? "Baja" : "Media",
+      "Tipo": t.type === "bug" ? "Bug / Error" : t.type === "story" ? "Historia" : t.type === "improvement" ? "Mejora" : "Tarea",
+      "Asignado": t.assignee || "Sin asignar",
+      "Fecha Límite": t.dueDate || "",
+      "Enlace Referencia": t.referenceUrl || "",
+      "Etiquetas": (t.tags || []).join(", "),
+      "Creado Por": t.createdByName || "",
+      "Fecha de Creación": t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ""
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tareas");
+    
+    const projectNameClean = (currentProject?.name || "Proyecto").replace(/[^a-zA-Z0-9]/g, "_");
+    XLSX.writeFile(wb, `MavlTask_Export_${projectNameClean}.xlsx`);
+  };
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -626,8 +657,8 @@ export default function App() {
         onOpenProjectModal={() => setIsProjectModalOpen(true)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
-
         onOpenImportModal={() => setIsImportModalOpen(true)}
+        onExportTasks={handleExportTasks}
         currentUser={currentUser}
         isFirebaseConnected={isFirebaseConnected}
         searchTerm={searchTerm}
@@ -742,7 +773,16 @@ export default function App() {
               title="Importar o migrar tareas desde Excel / CSV"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>Importar Excel</span>
+              <span className="hidden md:inline">Importar</span>
+            </button>
+
+            <button
+              onClick={handleExportTasks}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Exportar tareas actuales a Excel"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span className="hidden md:inline">Exportar</span>
             </button>
 
             <button
