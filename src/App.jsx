@@ -44,6 +44,8 @@ import {
   where 
 } from "firebase/firestore";
 
+import LoginScreen from "./components/LoginScreen";
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(getUserProfile());
   const [projects, setProjects] = useState([]);
@@ -86,27 +88,55 @@ export default function App() {
         }));
 
         if (remoteProjects.length > 0) {
-          setProjects(remoteProjects);
+          let myProjects = remoteProjects.filter(p => 
+            p.members?.some(m => m.id === currentUser.id || m.email === currentUser.email) ||
+            p.ownerId === currentUser.id
+          );
+
+          let sharedProject = null;
+          if (targetUrlProjId) {
+            sharedProject = remoteProjects.find(p => p.id === targetUrlProjId);
+            if (sharedProject) {
+              const isMember = sharedProject.members?.some(m => m.id === currentUser.id || m.email === currentUser.email);
+              if (!isMember) {
+                const projDoc = doc(db, "projects", sharedProject.id);
+                updateDoc(projDoc, {
+                  members: arrayUnion({
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    email: currentUser.email || ""
+                  })
+                }).catch(console.error);
+                
+                // Agregarlo localmente de inmediato para que renderice
+                myProjects.push(sharedProject);
+              }
+            }
+          }
+
+          if (myProjects.length === 0) {
+            const defaultP = {
+              name: `Proyecto Principal ${currentUser.name}`,
+              description: "Tablero colaborativo de tareas y sprints",
+              key: "MAVL",
+              ownerId: currentUser.id,
+              members: [{ id: currentUser.id, name: currentUser.name, email: currentUser.email || "" }],
+              createdAt: new Date().toISOString()
+            };
+            addDoc(collection(db, "projects"), defaultP);
+            return;
+          }
+
+          setProjects(myProjects);
           
-          const selected = targetUrlProjId 
-            ? remoteProjects.find(p => p.id === targetUrlProjId) || remoteProjects[0]
-            : (currentProject ? remoteProjects.find(p => p.id === currentProject.id) || remoteProjects[0] : remoteProjects[0]);
+          const selected = sharedProject 
+            ? sharedProject 
+            : (currentProject ? myProjects.find(p => p.id === currentProject.id) || myProjects[0] : myProjects[0]);
           
           setCurrentProject(selected);
-
-          if (selected && !selected.members?.some(m => m.id === currentUser.id || m.name === currentUser.name)) {
-            const projDoc = doc(db, "projects", selected.id);
-            updateDoc(projDoc, {
-              members: arrayUnion({
-                id: currentUser.id,
-                name: currentUser.name,
-                email: currentUser.email || ""
-              })
-            }).catch(console.error);
-          }
         } else {
           const defaultP = {
-            name: "Proyecto Principal MavlTask",
+            name: `Proyecto Principal ${currentUser.name}`,
             description: "Tablero colaborativo de tareas y sprints",
             key: "MAVL",
             ownerId: currentUser.id,
@@ -411,6 +441,10 @@ export default function App() {
                              (selectedType !== "all" ? 1 : 0) + 
                              (selectedAssignee !== "all" ? 1 : 0) +
                              (searchTerm ? 1 : 0);
+
+  if (currentUser.isAnonymous) {
+    return <LoginScreen onLoginSuccess={setCurrentUser} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#f0f4f9] text-slate-800 flex flex-col selection:bg-blue-600 selection:text-white">
