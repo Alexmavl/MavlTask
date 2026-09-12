@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES } from "../types/constants";
 
-export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, currentUser }) {
+export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, currentUser, members }) {
   const priorityInfo = PRIORITIES[task.priority] || PRIORITIES.medium;
   const typeInfo = ISSUE_TYPES[task.type] || ISSUE_TYPES.task;
 
@@ -177,12 +177,28 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
 
         {/* Asignado */}
         <div className="flex items-center gap-1.5">
-          <div 
-            title={task.assignee || 'Sin asignar'}
-            className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-[10px] font-bold text-white shadow-xs ring-1 ring-blue-200"
-          >
-            {(task.assignee || 'U').substring(0, 2).toUpperCase()}
-          </div>
+          {(() => {
+            const assigneeName = task.assignee || 'Sin asignar';
+            const memberObj = members?.find(m => m.name === assigneeName);
+            if (memberObj?.photoURL) {
+              return (
+                <img 
+                  src={memberObj.photoURL} 
+                  alt={assigneeName} 
+                  title={assigneeName}
+                  className="w-6 h-6 rounded-full object-cover shadow-xs ring-1 ring-blue-200"
+                />
+              );
+            }
+            return (
+              <div 
+                title={assigneeName}
+                className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-[10px] font-bold text-white shadow-xs ring-1 ring-blue-200"
+              >
+                {(assigneeName === 'Sin asignar' ? 'U' : assigneeName).substring(0, 2).toUpperCase()}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

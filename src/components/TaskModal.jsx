@@ -603,9 +603,19 @@ export default function TaskModal({
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
-                        {comment.author.substring(0, 1).toUpperCase()}
-                      </span>
+                      {(() => {
+                        const m = members?.find(member => member.name === comment.author);
+                        if (m?.photoURL) {
+                          return (
+                            <img src={m.photoURL} alt={comment.author} className="w-5 h-5 rounded-full object-cover border border-blue-200" />
+                          );
+                        }
+                        return (
+                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                            {comment.author.substring(0, 1).toUpperCase()}
+                          </span>
+                        );
+                      })()}
                       <span>{comment.author}</span>
                       {comment.author === currentUser?.name && (
                         <span className="text-[10px] text-blue-600 font-normal">(Tú)</span>

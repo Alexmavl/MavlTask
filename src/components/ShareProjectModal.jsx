@@ -101,9 +101,17 @@ export default function ShareProjectModal({ isOpen, onClose, project, onAddMembe
                     className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs hover:bg-white transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center font-bold text-white text-[11px]">
-                        {m.name.substring(0, 2).toUpperCase()}
-                      </div>
+                      {m.photoURL ? (
+                        <img 
+                          src={m.photoURL} 
+                          alt={m.name} 
+                          className="w-7 h-7 rounded-full object-cover border border-blue-200"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center font-bold text-white text-[11px]">
+                          {m.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
                       <div>
                         <p className="font-semibold text-slate-800">
                           {m.name} {m.id === currentUser?.id ? "(Tú)" : ""}

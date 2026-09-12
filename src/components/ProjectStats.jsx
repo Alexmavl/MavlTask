@@ -104,8 +104,17 @@ export default function ProjectStats({ tasks, members }) {
 
         {/* Top Performer */}
         <div className="bg-gradient-to-br from-[#0b192c] to-[#1e3e62] p-5 rounded-2xl shadow-sm flex items-center gap-4 text-white">
-          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-amber-400">
-            <Trophy className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-amber-400 overflow-hidden relative">
+            {topPerformer?.photoURL ? (
+              <img src={topPerformer.photoURL} alt="MVP" className="w-full h-full object-cover" />
+            ) : (
+              <Trophy className="w-6 h-6" />
+            )}
+            {topPerformer?.photoURL && (
+              <div className="absolute -bottom-1 -right-1 bg-amber-400 rounded-full p-0.5 shadow-sm">
+                <Trophy className="w-3 h-3 text-white" />
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-sky-300 uppercase tracking-wider">MVP Actual</p>

@@ -859,6 +859,7 @@ export default function App() {
                                 provided={provided}
                                 snapshot={snapshot}
                                 currentUser={currentUser}
+                                members={currentProject?.members || []}
                                 onEdit={(task) => {
                                   setTaskToEdit(task);
                                   setIsTaskModalOpen(true);
