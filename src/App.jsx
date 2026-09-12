@@ -11,7 +11,8 @@ import {
   ChevronDown,
   Menu,
   Users,
-  FileSpreadsheet
+  FileSpreadsheet,
+  BarChart3
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
@@ -21,6 +22,7 @@ import ShareProjectModal from "./components/ShareProjectModal";
 import UserProfileModal from "./components/UserProfileModal";
 import MobileDrawerMenu from "./components/MobileDrawerMenu";
 import ExcelImportModal from "./components/ExcelImportModal";
+import ProjectStats from "./components/ProjectStats";
 
 import { DEFAULT_COLUMNS, PRIORITIES, ISSUE_TYPES, getInitialTasks } from "./types/constants";
 import { 
@@ -59,6 +61,7 @@ export default function App() {
   const [selectedType, setSelectedType] = useState("all");
   const [selectedAssignee, setSelectedAssignee] = useState("all");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState("kanban"); // "kanban" o "stats"
   
   // Modales
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -626,19 +629,50 @@ export default function App() {
       <section className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-2.5 shadow-2xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           
-          {/* Título y Filtro Select de Usuario */}
+          {/* Título, Proyecto y Toggle Kanban/Stats */}
           <div className="flex items-center gap-4 flex-wrap">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                Tablero Kanban
-              </h2>
-              <p className="text-xs text-slate-500">
-                {currentProject?.name} • Clave: <span className="font-mono font-bold text-blue-600">{currentProject?.key || 'MAVL'}</span>
-              </p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                  {viewMode === "kanban" ? "Tablero Kanban" : "Métricas y Desempeño"}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {currentProject?.name} • Clave: <span className="font-mono font-bold text-blue-600">{currentProject?.key || 'MAVL'}</span>
+                </p>
+              </div>
+
+              {/* Botones de Toggle */}
+              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 ml-2">
+                <button
+                  onClick={() => setViewMode("kanban")}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                    viewMode === "kanban" 
+                      ? "bg-white text-blue-600 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                  title="Vista de Tablero"
+                >
+                  <FolderKanban className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Tablero</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("stats")}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                    viewMode === "stats" 
+                      ? "bg-white text-emerald-600 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                  title="Estadísticas de Usuario"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Métricas</span>
+                </button>
+              </div>
             </div>
 
-            {/* Selector Limpio de Filtro por Usuario (Select Dropdown) */}
-            <div className="flex items-center gap-2 pl-0 sm:pl-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 w-full sm:w-auto">
+            {/* Selector Limpio de Filtro por Usuario (Select Dropdown) - Solo visible en Kanban */}
+            {viewMode === "kanban" && (
+              <div className="flex items-center gap-2 pl-0 sm:pl-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 w-full sm:w-auto">
               <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5 shrink-0">
                 <Users className="w-3.5 h-3.5 text-blue-600" />
                 <span>Asignado a:</span>
@@ -675,6 +709,7 @@ export default function App() {
                 </button>
               )}
             </div>
+            )}
           </div>
 
           {/* Botones de Acción en Desktop */}
@@ -702,12 +737,15 @@ export default function App() {
         </div>
       </section>
 
-      {/* Main Board Kanban */}
+      {/* Main Content Area */}
       <main className="flex-1 p-3 sm:p-5 md:p-6 max-w-7xl mx-auto w-full overflow-x-auto">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">
-            {DEFAULT_COLUMNS.map((col) => {
-              const colTasks = getTasksByStatus(col.id);
+        {viewMode === "stats" ? (
+          <ProjectStats tasks={tasks} members={currentProject?.members} />
+        ) : (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">
+              {DEFAULT_COLUMNS.map((col) => {
+                const colTasks = getTasksByStatus(col.id);
 
               return (
                 <div
@@ -783,6 +821,7 @@ export default function App() {
             })}
           </div>
         </DragDropContext>
+        )}
       </main>
 
       {/* Botón Flotante (FAB) para Móvil */}
