@@ -864,7 +864,11 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 p-3 sm:p-5 md:p-6 max-w-7xl mx-auto w-full overflow-x-auto">
         {viewMode === "stats" ? (
-          <ProjectStats tasks={tasks} members={currentProject?.members} />
+          <ProjectStats 
+            tasks={tasks} 
+            members={currentProject?.members || []} 
+            currentUser={currentUser} 
+          />
         ) : (
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">

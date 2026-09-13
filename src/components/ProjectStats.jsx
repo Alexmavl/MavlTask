@@ -1,29 +1,124 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
 import { 
   Trophy, Activity, Target, CheckCircle2, ListTodo, 
-  AlertTriangle, Users, Bug, Zap, Bookmark, CheckSquare, Clock
+  AlertTriangle, Users, Bug, Zap, Bookmark, CheckSquare, Clock, Medal
 } from 'lucide-react';
 import { PRIORITIES, ISSUE_TYPES } from '../types/constants';
 
-export default function ProjectStats({ tasks = [], members = [] }) {
-  // 1. Resumen General y Normalización de Estados (corrige bug 'review' vs 'in_review')
+// Función utilitaria para normalizar texto (sin tildes, minúsculas y sin espacios extra)
+const normalizeText = (str) => {
+  if (!str) return "";
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+};
+
+// Normalizar estado de tarea para soportar 'done', 'completado', etc.
+const isDone = (status) => {
+  if (!status) return false;
+  const s = normalizeText(status);
+  return s === "done" || 
+         s.includes("complet") || 
+         s.includes("terminad") || 
+         s.includes("finaliz") || 
+         s === "hecho" || 
+         s === "resuelto";
+};
+
+const isReview = (status) => {
+  if (!status) return false;
+  const s = normalizeText(status);
+  return s === "review" || 
+         s === "in_review" || 
+         s.includes("revision") || 
+         s.includes("qa") || 
+         s.includes("prueba");
+};
+
+const isInProgress = (status) => {
+  if (!status) return false;
+  const s = normalizeText(status);
+  return s === "in_progress" || 
+         s.includes("progres") || 
+         s.includes("proceso") || 
+         s.includes("desarroll") || 
+         s === "doing";
+};
+
+export default function ProjectStats({ tasks = [], members = [], currentUser = null }) {
+  
+  // 1. Unificar lista de miembros canónicos (incluyendo usuario actual si aplica)
+  const canonicalMembers = useMemo(() => {
+    const list = [...(members || [])];
+    if (currentUser && currentUser.name && !list.some(m => m.id === currentUser.id || m.email === currentUser.email)) {
+      list.push(currentUser);
+    }
+    return list;
+  }, [members, currentUser]);
+
+  // 2. Resolver a qué miembro canónico pertenece un assignee (por ID, Email, Nombre, username o sin tildes)
+  const resolveAssignee = (rawAssignee) => {
+    if (!rawAssignee || rawAssignee === "Sin asignar") return null;
+    const norm = normalizeText(rawAssignee);
+    if (!norm) return null;
+
+    // A. Coincidencia por ID exacta
+    let found = canonicalMembers.find(m => m.id && m.id === rawAssignee);
+    if (found) return found;
+
+    // B. Coincidencia por Email exacto
+    found = canonicalMembers.find(m => m.email && normalizeText(m.email) === norm);
+    if (found) return found;
+
+    // C. Coincidencia por Nombre normalizado (ignora tildes, mayúsculas y espacios)
+    found = canonicalMembers.find(m => m.name && normalizeText(m.name) === norm);
+    if (found) return found;
+
+    // D. Coincidencia por prefijo de Email (ej. "alexmavl" coincide con "alexmavl@gmail.com")
+    found = canonicalMembers.find(m => {
+      if (!m.email) return false;
+      const userPart = normalizeText(m.email.split('@')[0]);
+      return userPart === norm;
+    });
+    if (found) return found;
+
+    // E. Coincidencia parcial si el nombre contiene el término (ej. "Alex" con "Alex Vásquez")
+    const partials = canonicalMembers.filter(m => {
+      if (!m.name) return false;
+      const mNorm = normalizeText(m.name);
+      return mNorm.startsWith(norm) || norm.startsWith(mNorm);
+    });
+    if (partials.length === 1) return partials[0];
+
+    // F. Si no coincide con ninguno registrado, creamos un registro consistente por nombre normalizado
+    return {
+      id: "ext_" + norm,
+      name: String(rawAssignee).trim(),
+      email: "",
+      photoURL: null
+    };
+  };
+
+  // 3. Resumen General de Tareas
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'done').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
-  const reviewTasks = tasks.filter(t => t.status === 'review' || t.status === 'in_review').length;
-  const todoTasks = tasks.filter(t => t.status === 'todo' || !t.status).length;
+  const completedTasks = tasks.filter(t => isDone(t.status)).length;
+  const inProgressTasks = tasks.filter(t => isInProgress(t.status)).length;
+  const reviewTasks = tasks.filter(t => isReview(t.status)).length;
+  const todoTasks = tasks.filter(t => !isDone(t.status) && !isInProgress(t.status) && !isReview(t.status)).length;
   const progressPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-  // Tareas vencidas / fuera de plazo (DueDate anterior a hoy y no completada)
+  // Tareas vencidas / en riesgo
   const now = new Date();
   const overdueTasks = tasks.filter(t => {
-    if (!t.dueDate || t.status === 'done') return false;
+    if (!t.dueDate || isDone(t.status)) return false;
     const due = new Date(t.dueDate);
-    // Comparar fecha de fin de día
     due.setHours(23, 59, 59, 999);
     return due < now;
   });
@@ -31,77 +126,79 @@ export default function ProjectStats({ tasks = [], members = [] }) {
   // Tareas sin asignar
   const unassignedTasks = tasks.filter(t => !t.assignee || t.assignee === 'Sin asignar');
 
-  // 2. Datos para Gráfico Circular de Estados (Donut Chart)
-  const statusCounts = {
-    todo: 0,
-    in_progress: 0,
-    review: 0,
-    done: 0
-  };
-  tasks.forEach(t => { 
-    const s = (t.status === 'in_review') ? 'review' : (t.status || 'todo');
-    if (statusCounts[s] !== undefined) {
-      statusCounts[s]++; 
-    } else {
-      statusCounts.todo++;
-    }
-  });
-  
+  // 4. Datos para Gráfico Circular (Donut Chart)
   const pieData = [
-    { name: 'Por Hacer', value: statusCounts.todo, color: '#94a3b8' },
-    { name: 'En Progreso', value: statusCounts.in_progress, color: '#0ea5e9' },
-    { name: 'En Revisión', value: statusCounts.review, color: '#6366f1' },
-    { name: 'Completado', value: statusCounts.done, color: '#10b981' }
+    { name: 'Por Hacer', value: todoTasks, color: '#94a3b8' },
+    { name: 'En Progreso', value: inProgressTasks, color: '#0ea5e9' },
+    { name: 'En Revisión', value: reviewTasks, color: '#6366f1' },
+    { name: 'Completado', value: completedTasks, color: '#10b981' }
   ].filter(d => d.value > 0);
 
-  // 3. Desempeño y Carga de Trabajo por Usuario
+  // 5. Métricas Agrupadas y Consolidadas por Usuario Canónico
   const userStatsMap = {};
-  
-  // Inicializar mapa con miembros del proyecto
-  (members || []).forEach(m => {
+
+  // Inicializar con todos los miembros conocidos
+  canonicalMembers.forEach(m => {
     if (m.name) {
-      userStatsMap[m.name.toLowerCase()] = { 
-        name: m.name, 
-        completed: 0, 
-        pending: 0, 
-        total: 0, 
-        photoURL: m.photoURL || null 
+      const key = m.id || normalizeText(m.name);
+      userStatsMap[key] = {
+        id: m.id,
+        name: m.name,
+        photoURL: m.photoURL || null,
+        completed: 0,
+        pending: 0,
+        total: 0
       };
     }
   });
 
-  // Contabilizar tareas por usuario asignado
+  // Procesar cada tarea y acumular en el usuario canónico
   tasks.forEach(t => {
-    const assignee = t.assignee;
-    if (!assignee || assignee === 'Sin asignar') return;
-    
-    const key = assignee.toLowerCase();
+    const rawAssignee = t.assignee;
+    if (!rawAssignee || rawAssignee === 'Sin asignar') return;
+
+    const resolved = resolveAssignee(rawAssignee);
+    if (!resolved) return;
+
+    const key = resolved.id || normalizeText(resolved.name);
     if (!userStatsMap[key]) {
-      const memberInfo = (members || []).find(m => m.name?.toLowerCase() === key || m.email?.toLowerCase() === key);
-      userStatsMap[key] = { 
-        name: assignee, 
-        completed: 0, 
-        pending: 0, 
-        total: 0, 
-        photoURL: memberInfo?.photoURL || null 
+      userStatsMap[key] = {
+        id: resolved.id,
+        name: resolved.name,
+        photoURL: resolved.photoURL || null,
+        completed: 0,
+        pending: 0,
+        total: 0
       };
     }
 
     userStatsMap[key].total++;
-    if (t.status === 'done') {
+    if (isDone(t.status)) {
       userStatsMap[key].completed++;
     } else {
       userStatsMap[key].pending++;
     }
   });
 
+  // Ordenar usuarios: 1° Mayor cantidad de tareas completadas, 2° Mayor tasa de éxito, 3° Menor pendiente
   const userData = Object.values(userStatsMap)
     .filter(u => u.total > 0)
-    .sort((a, b) => b.completed - a.completed || b.total - a.total);
+    .sort((a, b) => {
+      if (b.completed !== a.completed) {
+        return b.completed - a.completed;
+      }
+      const bRate = b.total > 0 ? (b.completed / b.total) : 0;
+      const aRate = a.total > 0 ? (a.completed / a.total) : 0;
+      if (bRate !== aRate) {
+        return bRate - aRate;
+      }
+      return b.total - a.total;
+    });
 
+  // MVP actual: el primer usuario con al menos 1 tarea completada
   const topPerformer = userData.length > 0 && userData[0].completed > 0 ? userData[0] : null;
 
-  // 4. Distribución por Prioridad
+  // 6. Distribución por Prioridad
   const priorityCounts = { urgent: 0, high: 0, medium: 0, low: 0 };
   tasks.forEach(t => {
     const p = t.priority || 'medium';
@@ -109,7 +206,7 @@ export default function ProjectStats({ tasks = [], members = [] }) {
     else priorityCounts.medium++;
   });
 
-  // 5. Distribución por Tipo de Tarea
+  // 7. Distribución por Tipo de Tarea
   const typeCounts = { task: 0, bug: 0, story: 0, improvement: 0 };
   tasks.forEach(t => {
     const tp = t.type || 'task';
@@ -214,7 +311,9 @@ export default function ProjectStats({ tasks = [], members = [] }) {
               {topPerformer ? topPerformer.name : "Sin datos aún"}
             </h3>
             {topPerformer ? (
-              <p className="text-[11px] text-slate-300 mt-0.5">{topPerformer.completed} terminadas</p>
+              <p className="text-[11px] text-slate-300 mt-0.5 font-medium">
+                {topPerformer.completed} completadas de {topPerformer.total}
+              </p>
             ) : (
               <p className="text-[11px] text-slate-400 mt-0.5">Completa una tarea</p>
             )}
@@ -325,7 +424,104 @@ export default function ProjectStats({ tasks = [], members = [] }) {
         </div>
       </div>
 
-      {/* ---------------- FILA 3: DESGLOSE POR PRIORIDAD Y TIPOS ---------------- */}
+      {/* ---------------- FILA 3: TABLA DE LÍDERES Y DESEMPEÑO DEL EQUIPO ---------------- */}
+      {userData.length > 0 && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-500" />
+              Ranking y Carga de Trabajo del Equipo
+            </h3>
+            <span className="text-xs text-slate-400 font-medium">
+              Ordenado por mayor cantidad de tareas completadas
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                  <th className="pb-3 pl-2">#</th>
+                  <th className="pb-3">Miembro</th>
+                  <th className="pb-3 text-center">Completadas</th>
+                  <th className="pb-3 text-center">Pendientes</th>
+                  <th className="pb-3 text-center">Total</th>
+                  <th className="pb-3 text-right pr-2">Efectividad</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {userData.map((user, index) => {
+                  const rate = user.total > 0 ? Math.round((user.completed / user.total) * 100) : 0;
+                  return (
+                    <tr key={user.id || index} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 pl-2 font-bold text-slate-400">
+                        {index === 0 && user.completed > 0 ? (
+                          <span className="text-base" title="Primer Lugar">🥇</span>
+                        ) : index === 1 && user.completed > 0 ? (
+                          <span className="text-base" title="Segundo Lugar">🥈</span>
+                        ) : index === 2 && user.completed > 0 ? (
+                          <span className="text-base" title="Tercer Lugar">🥉</span>
+                        ) : (
+                          <span>{index + 1}</span>
+                        )}
+                      </td>
+                      <td className="py-3 font-semibold text-slate-800">
+                        <div className="flex items-center gap-2.5">
+                          {user.photoURL ? (
+                            <img 
+                              src={user.photoURL} 
+                              alt={user.name} 
+                              className="w-7 h-7 rounded-full object-cover border border-blue-200 shadow-2xs" 
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center font-bold text-white text-[11px] shadow-2xs">
+                              {(user.name || 'U').substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-bold text-slate-900 leading-tight">{user.name}</p>
+                            {index === 0 && user.completed > 0 && (
+                              <span className="text-[10px] text-amber-600 font-bold">Líder del sprint</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-center">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {user.completed}
+                        </span>
+                      </td>
+                      <td className="py-3 text-center">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                          {user.pending}
+                        </span>
+                      </td>
+                      <td className="py-3 text-center font-bold text-slate-700">
+                        {user.total}
+                      </td>
+                      <td className="py-3 text-right pr-2">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="font-bold text-slate-800 w-9 text-right">{rate}%</span>
+                          <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                rate >= 75 ? "bg-emerald-500" : rate >= 40 ? "bg-blue-500" : "bg-amber-500"
+                              }`}
+                              style={{ width: `${rate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- FILA 4: DESGLOSE POR PRIORIDAD Y TIPOS ---------------- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* Desglose por Prioridad */}
@@ -446,7 +642,7 @@ export default function ProjectStats({ tasks = [], members = [] }) {
                 Urgentes Pendientes
               </span>
               <span className={`font-bold ${priorityCounts.urgent > 0 ? "text-rose-600" : "text-slate-800"}`}>
-                {tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length}
+                {tasks.filter(t => t.priority === 'urgent' && !isDone(t.status)).length}
               </span>
             </div>
           </div>
