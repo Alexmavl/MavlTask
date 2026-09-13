@@ -95,14 +95,10 @@ export default function TaskModal({
   const [isDraggingCommentImg, setIsDraggingCommentImg] = useState(false);
 
   const isCreator = !taskToEdit?.id || !taskToEdit?.createdBy || taskToEdit?.createdBy === currentUser?.id || taskToEdit?.createdBy === currentUser?.name;
-  const isAssignee = !!(taskToEdit?.assignee && (
-    taskToEdit.assignee === currentUser?.name || 
-    taskToEdit.assignee === currentUser?.id ||
-    (currentUser?.email && taskToEdit.assignee.toLowerCase() === currentUser.email.toLowerCase())
-  ));
-  const canEditBody = !taskToEdit?.id || isCreator;
-  const canChangeStatus = canEditBody || isAssignee;
-  const canSave = canEditBody || isAssignee;
+  const canEdit = !taskToEdit?.id || isCreator;
+  const canEditBody = canEdit;
+  const canChangeStatus = canEdit;
+  const canSave = canEdit;
 
   useEffect(() => {
     if (!isOpen) {
@@ -385,12 +381,10 @@ export default function TaskModal({
             <h3 className="text-base sm:text-lg font-bold text-slate-800">
               {taskToEdit?.id ? `Incidencia #${taskToEdit.taskCode || taskToEdit.code || taskToEdit.id}` : "Nueva Tarea / Incidencia"}
             </h3>
-            {!canEditBody && (
+            {!canEdit && (
               <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
                 <Lock className="w-3 h-3 text-amber-600" />
-                {isAssignee 
-                  ? "Asignada a ti (Puedes mover de estado)" 
-                  : `Solo lectura (${taskToEdit?.createdByName ? `Creado por ${taskToEdit.createdByName}` : "Sin permisos de edición"})`}
+                Solo lectura ({taskToEdit?.createdByName ? `Creado por ${taskToEdit.createdByName}` : "Solo lectura"})
               </span>
             )}
           </div>
