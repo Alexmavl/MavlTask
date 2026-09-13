@@ -40,6 +40,10 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
+      onDoubleClick={(e) => {
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        onEdit(task);
+      }}
       className={`group relative rounded-xl border p-3.5 transition-all duration-200 select-none bg-white shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing ${
         snapshot.isDragging
           ? "border-blue-500 ring-2 ring-blue-500/30 shadow-xl scale-105 z-50 rotate-1 bg-white"
