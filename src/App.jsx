@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Clock,
   Calendar,
-  Edit3
+  Edit3,
+  Ban
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
@@ -1035,7 +1036,10 @@ export default function App() {
                       <option value="all">🌐 Todos los Sprints ({tasks.length})</option>
                       {sprints.map((s) => {
                         const count = tasks.filter(t => t.sprintId === s.id).length;
-                        const statusLabel = s.status === "active" ? "Activo" : s.status === "planned" ? "Planificado" : "Cerrado";
+                        const statusLabel = 
+                          s.status === "active" ? "Activo" : 
+                          s.status === "planned" ? "Planificado" : 
+                          s.status === "inactive" ? "Inactivo" : "Cerrado";
                         return (
                           <option key={s.id} value={s.id}>
                             {s.name} ({statusLabel}) — {count} {count === 1 ? 'tarea' : 'tareas'}
@@ -1054,13 +1058,20 @@ export default function App() {
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                         : selectedSprintObj.status === "planned"
                         ? "bg-blue-50 text-blue-700 border-blue-300"
+                        : selectedSprintObj.status === "inactive"
+                        ? "bg-rose-50 text-rose-700 border-rose-300"
                         : "bg-slate-100 text-slate-700 border-slate-300"
                     }`}>
                       <span className={`w-2 h-2 rounded-full ${
                         selectedSprintObj.status === "active" ? "bg-emerald-500" :
-                        selectedSprintObj.status === "planned" ? "bg-blue-500" : "bg-slate-400"
+                        selectedSprintObj.status === "planned" ? "bg-blue-500" :
+                        selectedSprintObj.status === "inactive" ? "bg-rose-500" : "bg-slate-400"
                       }`}></span>
-                      <span>{selectedSprintObj.status === "active" ? "Sprint Activo" : selectedSprintObj.status === "planned" ? "Sprint Planificado" : "Sprint Cerrado"}</span>
+                      <span>
+                        {selectedSprintObj.status === "active" ? "Sprint Activo" : 
+                         selectedSprintObj.status === "planned" ? "Sprint Planificado" : 
+                         selectedSprintObj.status === "inactive" ? "Sprint Inactivo" : "Sprint Cerrado"}
+                      </span>
                     </span>
                   )}
                 </div>
@@ -1102,9 +1113,12 @@ export default function App() {
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                       selectedSprintObj.status === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
                       selectedSprintObj.status === "planned" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                      selectedSprintObj.status === "inactive" ? "bg-rose-50 text-rose-700 border border-rose-200" :
                       "bg-slate-100 text-slate-600 border border-slate-200"
                     }`}>
-                      {selectedSprintObj.status === "active" ? "Activo" : selectedSprintObj.status === "planned" ? "Planificado" : "Cerrado"}
+                      {selectedSprintObj.status === "active" ? "Activo" : 
+                       selectedSprintObj.status === "planned" ? "Planificado" : 
+                       selectedSprintObj.status === "inactive" ? "Inactivo" : "Cerrado"}
                     </span>
                     {selectedSprintObj.goal && (
                       <span className="text-slate-600 italic">
@@ -1121,12 +1135,23 @@ export default function App() {
                   )}
                 </div>
               )}
+
+              {/* Aviso si el Sprint seleccionado está Inactivo o Cerrado */}
+              {selectedSprintObj && (selectedSprintObj.status === "inactive" || selectedSprintObj.status === "completed") && (
+                <div className="mt-2.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                  <Ban className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Sprint {selectedSprintObj.status === "inactive" ? "Inactivo" : "Cerrado"}:</strong> Solo lectura de historial. No es posible agregar nuevas tareas a este sprint.
+                  </span>
+                </div>
+              )}
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
               <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">
                 {DEFAULT_COLUMNS.map((col) => {
                   const colTasks = getTasksByStatus(col.id);
+                  const isSprintInactive = selectedSprintObj && (selectedSprintObj.status === "inactive" || selectedSprintObj.status === "completed");
 
                 return (
                   <div
@@ -1145,12 +1170,21 @@ export default function App() {
                       </div>
 
                       <button
+                        disabled={isSprintInactive}
                         onClick={() => {
+                          if (isSprintInactive) {
+                            alert("Este sprint se encuentra inactivo o cerrado. No es posible crear tareas en él.");
+                            return;
+                          }
                           setTaskToEdit({ status: col.id });
                           setIsTaskModalOpen(true);
                         }}
-                        className="p-1 hover:bg-slate-300/60 text-slate-500 hover:text-blue-600 rounded-lg transition-colors"
-                        title="Agregar tarea a esta columna"
+                        className={`p-1 rounded-lg transition-colors ${
+                          isSprintInactive
+                            ? "text-slate-300 cursor-not-allowed opacity-30"
+                            : "hover:bg-slate-300/60 text-slate-500 hover:text-blue-600 cursor-pointer"
+                        }`}
+                        title={isSprintInactive ? "Sprint inactivo: no se permiten nuevas tareas" : "Agregar tarea a esta columna"}
                       >
                         <Plus className="w-4 h-4" />
                       </button>

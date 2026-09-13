@@ -119,9 +119,20 @@ export default function TaskModal({
 
     const currentId = taskToEdit?.id || null;
     const isDifferentTask = currentId !== prevTaskIdRef.current;
-    const targetSprint = taskToEdit?.sprintId !== undefined 
-      ? (taskToEdit.sprintId || "") 
-      : ((selectedSprintId && selectedSprintId !== "all" && selectedSprintId !== "backlog") ? selectedSprintId : (sprints.find(s => s.status === "active")?.id || sprints[0]?.id || ""));
+    const activeSprints = sprints.filter(s => s.status !== "inactive" && s.status !== "completed");
+    let targetSprint = "";
+    if (taskToEdit?.sprintId !== undefined) {
+      targetSprint = taskToEdit.sprintId || "";
+    } else {
+      if (selectedSprintId && selectedSprintId !== "all" && selectedSprintId !== "backlog") {
+        const found = activeSprints.find(s => s.id === selectedSprintId);
+        if (found) targetSprint = found.id;
+      }
+      if (!targetSprint) {
+        const active = activeSprints.find(s => s.status === "active") || activeSprints[0];
+        targetSprint = active ? active.id : "";
+      }
+    }
 
     if (taskToEdit) {
       if (isDifferentTask) {
@@ -344,6 +355,15 @@ export default function TaskModal({
     }
 
     if (!formData.title.trim()) return;
+
+    // Bloquear creación de tareas en sprints inactivos o cerrados
+    if (!taskToEdit?.id && formData.sprintId) {
+      const chosen = sprints.find(s => s.id === formData.sprintId);
+      if (chosen && (chosen.status === "inactive" || chosen.status === "completed")) {
+        alert(`El sprint "${chosen.name}" está ${chosen.status === "inactive" ? "inactivo" : "cerrado"}. No es posible crear nuevas tareas en él.`);
+        return;
+      }
+    }
 
     const tags = formData.tagsInput
       .split(",")
@@ -693,9 +713,16 @@ export default function TaskModal({
                 }`}
               >
                 <option value="">Sin Sprint (Backlog)</option>
-                {sprints.map((s) => (
+                {/* Sprints activos o planificados disponibles */}
+                {sprints.filter(s => s.status !== "inactive" && s.status !== "completed").map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.status === "active" ? "Activo" : s.status === "planned" ? "Planificado" : "Cerrado"})
+                    {s.name} ({s.status === "active" ? "Activo" : "Planificado"})
+                  </option>
+                ))}
+                {/* Si la tarea ya pertenecía a un sprint inactivo o cerrado, preservarla como historial */}
+                {taskToEdit?.id && sprints.filter(s => (s.status === "inactive" || s.status === "completed") && s.id === formData.sprintId).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status === "inactive" ? "Inactivo" : "Cerrado"} — Historial)
                   </option>
                 ))}
               </select>

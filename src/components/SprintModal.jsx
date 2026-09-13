@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Calendar, Flag, Sparkles, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { X, Calendar, Flag, Sparkles, Trash2, CheckCircle2, Clock, Ban } from "lucide-react";
 
 export default function SprintModal({
   isOpen,
@@ -152,42 +152,60 @@ export default function SprintModal({
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, status: "active" })}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   formData.status === "active"
                     ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-xs"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 Activo
               </button>
 
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, status: "planned" })}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   formData.status === "planned"
                     ? "bg-blue-50 border-blue-400 text-blue-700 shadow-xs"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <Clock className="w-3.5 h-3.5" />
+                <Clock className="w-3.5 h-3.5 text-blue-600" />
                 Planificado
               </button>
 
               <button
                 type="button"
+                onClick={() => setFormData({ ...formData, status: "inactive" })}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  formData.status === "inactive"
+                    ? "bg-rose-50 border-rose-400 text-rose-700 shadow-xs"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Ban className="w-3.5 h-3.5 text-rose-600" />
+                Inactivo
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setFormData({ ...formData, status: "completed" })}
-                className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   formData.status === "completed"
                     ? "bg-slate-200 border-slate-400 text-slate-700 shadow-xs"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <Flag className="w-3.5 h-3.5" />
+                <Flag className="w-3.5 h-3.5 text-slate-600" />
                 Cerrado
               </button>
             </div>
+            {(formData.status === "inactive" || formData.status === "completed") && (
+              <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2 leading-tight">
+                ℹ️ Al estar <strong>{formData.status === "inactive" ? "Inactivo" : "Cerrado"}</strong>, no se podrán crear nuevas tareas dentro de este sprint, pero podrás consultar siempre su historial y métricas.
+              </p>
+            )}
           </div>
 
           {/* Footer de Acciones */}
