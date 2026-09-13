@@ -214,11 +214,21 @@ export default function App() {
       );
 
       const unsubTasks = onSnapshot(q, (snapshot) => {
-        const remoteTasks = snapshot.docs.map(d => ({
-          id: d.id,
-          ...d.data()
-        }));
+        const remoteTasks = snapshot.docs.map(d => {
+          const data = d.data();
+          return {
+            ...data,
+            firestoreId: d.id,
+            taskCode: data.taskCode || data.code || data.id || d.id,
+            id: d.id
+          };
+        });
         setTasks(remoteTasks);
+        setTaskToEdit(prev => {
+          if (!prev || !prev.id) return prev;
+          const match = remoteTasks.find(t => t.id === prev.id || t.firestoreId === prev.id || (prev.firestoreId && t.firestoreId === prev.firestoreId));
+          return match || prev;
+        });
       });
 
       return () => unsubTasks();
@@ -370,12 +380,29 @@ export default function App() {
     if (!currentProject) return;
 
     if (taskData.id) {
+      // Sincronizar inmediatamente taskToEdit para evitar sobrescrituras si el modal sigue abierto
+      setTaskToEdit(prev => {
+        if (prev && (prev.id === taskData.id || prev.firestoreId === taskData.id || (taskData.firestoreId && prev.firestoreId === taskData.firestoreId))) {
+          return { ...prev, ...taskData };
+        }
+        return prev;
+      });
+
       if (isFirebaseConnected) {
         const db = initFirebase();
         if (db) {
-          const taskDoc = doc(db, "tasks", taskData.id);
-          const { id, ...cleanData } = taskData;
-          await updateDoc(taskDoc, cleanData);
+          try {
+            const docId = taskData.firestoreId || taskData.id;
+            const taskDoc = doc(db, "tasks", docId);
+            const { id, firestoreId, ...cleanData } = taskData;
+            
+            // Sanitizar para que Firestore no rechace valores undefined en comentarios u otros campos
+            const sanitizedData = JSON.parse(JSON.stringify(cleanData, (k, v) => v === undefined ? null : v));
+            await updateDoc(taskDoc, sanitizedData);
+          } catch (err) {
+            console.error("Error actualizando tarea en Firebase:", err);
+            alert("No se pudo guardar la tarea en Firebase: " + (err.message || "Error"));
+          }
         }
       } else {
         const updated = tasks.map(t => t.id === taskData.id ? taskData : t);
@@ -383,20 +410,28 @@ export default function App() {
       }
     } else {
       const prefix = currentProject.key || "MAVL";
-      const newId = `${prefix}-${tasks.length + 1}`;
+      const newCode = `${prefix}-${tasks.length + 1}`;
       const newTask = {
         ...taskData,
-        id: newId,
+        taskCode: newCode,
+        id: newCode,
         projectId: currentProject.id,
-        createdBy: currentUser.id,
-        createdByName: currentUser.name,
+        createdBy: currentUser.id || null,
+        createdByName: currentUser.name || "Usuario",
         createdAt: new Date().toISOString()
       };
 
       if (isFirebaseConnected) {
         const db = initFirebase();
         if (db) {
-          await addDoc(collection(db, "tasks"), newTask);
+          try {
+            const { id, firestoreId, ...cleanData } = newTask;
+            const sanitizedData = JSON.parse(JSON.stringify(cleanData, (k, v) => v === undefined ? null : v));
+            await addDoc(collection(db, "tasks"), sanitizedData);
+          } catch (err) {
+            console.error("Error al crear tarea en Firebase:", err);
+            alert("No se pudo crear la tarea en Firebase: " + (err.message || "Error"));
+          }
         }
       } else {
         const updated = [newTask, ...tasks];
@@ -419,7 +454,12 @@ export default function App() {
     if (isFirebaseConnected) {
       const db = initFirebase();
       if (db) {
-        await deleteDoc(doc(db, "tasks", taskId));
+        try {
+          const docId = taskToDelete?.firestoreId || taskId;
+          await deleteDoc(doc(db, "tasks", docId));
+        } catch (e) {
+          console.error("Error eliminando tarea en Firebase:", e);
+        }
       }
     } else {
       const updated = tasks.filter(t => t.id !== taskId);

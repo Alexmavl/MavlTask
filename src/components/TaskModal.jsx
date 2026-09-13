@@ -19,6 +19,49 @@ import {
 import { PRIORITIES, ISSUE_TYPES, DEFAULT_COLUMNS } from "../types/constants";
 import UserSelect from "./UserSelect";
 
+// Función utilitaria para redimensionar y comprimir imágenes (reduce ~3MB a ~25-40KB en Base64)
+// evitando exceder el límite de 1MB de Firestore o cuotas de LocalStorage
+export const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.65) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith("image/")) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a JPEG para optimizar drásticamente el tamaño Base64
+        const compressedBase64 = canvas.toDataURL("image/jpeg", quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function TaskModal({ 
   isOpen, 
   onClose, 
@@ -44,6 +87,8 @@ export default function TaskModal({
   const [newCommentText, setNewCommentText] = useState("");
   const [commentImages, setCommentImages] = useState([]);
   const [previewImage, setPreviewImage] = useState(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const prevTaskIdRef = useRef(null);
   
   // Estados de Drag & Drop sobre zonas de subida
   const [isDraggingTaskImg, setIsDraggingTaskImg] = useState(false);
@@ -53,20 +98,35 @@ export default function TaskModal({
   const canEditBody = !taskToEdit?.id || isCreator;
 
   useEffect(() => {
+    if (!isOpen) {
+      prevTaskIdRef.current = null;
+      return;
+    }
+
+    const currentId = taskToEdit?.id || null;
+    const isDifferentTask = currentId !== prevTaskIdRef.current;
+
     if (taskToEdit) {
-      setFormData({
-        title: taskToEdit.title || "",
-        description: taskToEdit.description || "",
-        status: taskToEdit.status || "todo",
-        priority: taskToEdit.priority || "medium",
-        type: taskToEdit.type || "task",
-        assignee: taskToEdit.assignee || (currentUser?.name || "Sin asignar"),
-        dueDate: taskToEdit.dueDate || "",
-        referenceUrl: taskToEdit.referenceUrl || "",
-        tagsInput: (taskToEdit.tags || []).join(", "),
-        images: taskToEdit.images || []
-      });
-      setComments(taskToEdit.comments || []);
+      if (isDifferentTask) {
+        setFormData({
+          title: taskToEdit.title || "",
+          description: taskToEdit.description || "",
+          status: taskToEdit.status || "todo",
+          priority: taskToEdit.priority || "medium",
+          type: taskToEdit.type || "task",
+          assignee: taskToEdit.assignee || (currentUser?.name || "Sin asignar"),
+          dueDate: taskToEdit.dueDate || "",
+          referenceUrl: taskToEdit.referenceUrl || "",
+          tagsInput: (taskToEdit.tags || []).join(", "),
+          images: taskToEdit.images || []
+        });
+        setComments(taskToEdit.comments || []);
+        setNewCommentText("");
+        setCommentImages([]);
+      } else {
+        // Misma tarea abierta: sincronizar comentarios sin borrar el borrador que escribe el usuario
+        setComments(taskToEdit.comments || []);
+      }
     } else {
       setFormData({
         title: "",
@@ -81,30 +141,35 @@ export default function TaskModal({
         images: []
       });
       setComments([]);
+      setNewCommentText("");
+      setCommentImages([]);
     }
-    setNewCommentText("");
-    setCommentImages([]);
-  }, [taskToEdit, isOpen, members, currentUser]);
+    prevTaskIdRef.current = currentId;
+  }, [taskToEdit, isOpen, currentUser]);
 
-  // Procesar archivos a Base64
-  const processFiles = (files, isComment = false) => {
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith("image/")) return;
+  // Procesar archivos con compresión a Base64
+  const processFiles = async (files, isComment = false) => {
+    const fileArray = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (fileArray.length === 0) return;
 
-      const reader = new FileReader();
-      reader.onload = (loadEvent) => {
-        const base64 = loadEvent.target.result;
-        if (isComment) {
-          setCommentImages(prev => [...prev, base64]);
-        } else {
-          setFormData(prev => ({
-            ...prev,
-            images: [...(prev.images || []), base64]
-          }));
+    setIsProcessingImage(true);
+    try {
+      for (const file of fileArray) {
+        const compressed = await compressImage(file);
+        if (compressed) {
+          if (isComment) {
+            setCommentImages(prev => [...prev, compressed]);
+          } else {
+            setFormData(prev => ({
+              ...prev,
+              images: [...(prev.images || []), compressed]
+            }));
+          }
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleImageUpload = (e, isComment = false) => {
@@ -182,15 +247,16 @@ export default function TaskModal({
   };
 
   const handleAddComment = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (isProcessingImage) return;
     if (!newCommentText.trim() && commentImages.length === 0) return;
 
     const newComment = {
       id: "comment_" + Date.now(),
       author: currentUser?.name || "Usuario",
-      authorId: currentUser?.id,
+      authorId: currentUser?.id || null,
       text: newCommentText.trim(),
-      images: commentImages,
+      images: commentImages || [],
       createdAt: new Date().toISOString()
     };
 
@@ -199,9 +265,10 @@ export default function TaskModal({
     setNewCommentText("");
     setCommentImages([]);
 
-    if (!canEditBody && taskToEdit) {
+    if (taskToEdit?.id) {
       onSave({
         ...taskToEdit,
+        status: formData.status,
         comments: updatedComments
       });
     }
@@ -216,9 +283,10 @@ export default function TaskModal({
     const updated = comments.filter(c => c.id !== commentId);
     setComments(updated);
 
-    if (!canEditBody && taskToEdit) {
+    if (taskToEdit?.id) {
       onSave({
         ...taskToEdit,
+        status: formData.status,
         comments: updated
       });
     }
@@ -227,11 +295,28 @@ export default function TaskModal({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!canEditBody && taskToEdit) {
+    // Auto-incluir comentario o imagen pendiente al presionar Guardar
+    let finalComments = [...comments];
+    if (newCommentText.trim() || commentImages.length > 0) {
+      const autoComment = {
+        id: "comment_" + Date.now(),
+        author: currentUser?.name || "Usuario",
+        authorId: currentUser?.id || null,
+        text: newCommentText.trim(),
+        images: commentImages || [],
+        createdAt: new Date().toISOString()
+      };
+      finalComments.push(autoComment);
+      setComments(finalComments);
+      setNewCommentText("");
+      setCommentImages([]);
+    }
+
+    if (!canEditBody && taskToEdit?.id) {
       onSave({
         ...taskToEdit,
         status: formData.status,
-        comments
+        comments: finalComments
       });
       onClose();
       return;
@@ -252,18 +337,19 @@ export default function TaskModal({
       priority: formData.priority,
       type: formData.type,
       assignee: formData.assignee.trim() || "Sin asignar",
-      dueDate: formData.dueDate,
-      referenceUrl: formData.referenceUrl.trim(),
+      dueDate: formData.dueDate || "",
+      referenceUrl: formData.referenceUrl.trim() || "",
       images: formData.images || [],
-      tags,
-      comments,
-      createdBy: taskToEdit?.createdBy || currentUser?.id,
-      createdByName: taskToEdit?.createdByName || currentUser?.name
+      tags: tags || [],
+      comments: finalComments || [],
+      createdBy: taskToEdit?.createdBy || currentUser?.id || null,
+      createdByName: taskToEdit?.createdByName || currentUser?.name || "Usuario"
     };
 
     onSave(taskPayload);
     onClose();
   };
+
 
   if (!isOpen) return null;
 
@@ -272,13 +358,23 @@ export default function TaskModal({
       <div 
         className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
+        onPaste={(e) => {
+          // Si el usuario pega una imagen en cualquier parte del modal, procesarla como evidencia
+          const clipboardData = e.clipboardData || window.clipboardData;
+          if (clipboardData?.items) {
+            const hasImage = Array.from(clipboardData.items).some(item => item.type.startsWith("image/"));
+            if (hasImage) {
+              handlePaste(e, true);
+            }
+          }
+        }}
       >
         {/* Modal Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
             <h3 className="text-base sm:text-lg font-bold text-slate-800">
-              {taskToEdit?.id ? `Incidencia #${taskToEdit.id}` : "Nueva Tarea / Incidencia"}
+              {taskToEdit?.id ? `Incidencia #${taskToEdit.taskCode || taskToEdit.code || taskToEdit.id}` : "Nueva Tarea / Incidencia"}
             </h3>
             {!canEditBody && (
               <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
@@ -700,26 +796,30 @@ export default function TaskModal({
 
               <input
                 type="text"
-                placeholder={`Comentar o pegar imagen con Ctrl+V...`}
+                placeholder={isProcessingImage ? "Procesando y optimizando imagen..." : `Comentar o pegar imagen con Ctrl+V...`}
+                disabled={isProcessingImage}
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
                 onPaste={(e) => handlePaste(e, true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleAddComment(e);
+                    if (!isProcessingImage) {
+                      handleAddComment(e);
+                    }
                   }
                 }}
-                className="flex-1 px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
               />
               
               <button
                 type="button"
+                disabled={isProcessingImage || (!newCommentText.trim() && commentImages.length === 0)}
                 onClick={handleAddComment}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shadow-blue-500/20"
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs shadow-blue-500/20"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Comentar</span>
+                <span>{isProcessingImage ? "Procesando..." : "Comentar"}</span>
               </button>
             </div>
           </div>

@@ -28,8 +28,11 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
   };
 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done';
-  const commentsCount = (task.comments || []).length;
-  const imagesCount = (task.images || []).length;
+  const taskComments = task.comments || [];
+  const commentsCount = taskComments.length;
+  const commentImagesCount = taskComments.reduce((sum, c) => sum + (c.images?.length || 0), 0);
+  const taskImagesCount = (task.images || []).length;
+  const totalImagesCount = taskImagesCount + commentImagesCount;
   const isCreator = !task.createdBy || task.createdBy === currentUser?.id || task.createdBy === currentUser?.name;
 
   return (
@@ -50,7 +53,7 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
             {getIcon(task.type)}
           </span>
           <span className="text-xs font-mono font-bold text-blue-600">
-            {task.id}
+            {task.taskCode || task.code || task.id}
           </span>
         </div>
 
@@ -151,14 +154,14 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
           )}
 
           {/* Badge de Imágenes Adjuntas */}
-          {imagesCount > 0 && (
+          {totalImagesCount > 0 && (
             <span 
               onClick={() => onEdit(task)}
               className="flex items-center gap-1 text-[11px] text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded-md hover:bg-sky-100 cursor-pointer font-medium"
-              title={`${imagesCount} capturas de prueba adjuntas`}
+              title={`${totalImagesCount} imágenes adjuntas (${taskImagesCount} en tarea, ${commentImagesCount} en comentarios)`}
             >
               <ImageIcon className="w-3 h-3 text-sky-600" />
-              {imagesCount}
+              {totalImagesCount}
             </span>
           )}
 

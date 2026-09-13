@@ -220,7 +220,11 @@ export function getLocalProjects() {
 }
 
 export function saveLocalProjects(projects) {
-  localStorage.setItem("mavltask_local_projects", JSON.stringify(projects));
+  try {
+    localStorage.setItem("mavltask_local_projects", JSON.stringify(projects));
+  } catch (err) {
+    console.error("Error guardando proyectos localmente:", err);
+  }
 }
 
 export function getLocalTasksByProject(projectId) {
@@ -232,5 +236,9 @@ export function getLocalTasksByProject(projectId) {
 }
 
 export function saveLocalTasksByProject(projectId, tasks) {
-  localStorage.setItem(STORAGE_KEY_PREFIX + projectId, JSON.stringify(tasks));
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + projectId, JSON.stringify(tasks));
+  } catch (err) {
+    console.error("Error guardando tareas localmente (posible cuota excedida de LocalStorage):", err);
+  }
 }
