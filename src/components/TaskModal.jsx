@@ -94,8 +94,15 @@ export default function TaskModal({
   const [isDraggingTaskImg, setIsDraggingTaskImg] = useState(false);
   const [isDraggingCommentImg, setIsDraggingCommentImg] = useState(false);
 
-  const isCreator = !taskToEdit?.createdBy || taskToEdit?.createdBy === currentUser?.id || taskToEdit?.createdBy === currentUser?.name;
+  const isCreator = !taskToEdit?.id || !taskToEdit?.createdBy || taskToEdit?.createdBy === currentUser?.id || taskToEdit?.createdBy === currentUser?.name;
+  const isAssignee = !!(taskToEdit?.assignee && (
+    taskToEdit.assignee === currentUser?.name || 
+    taskToEdit.assignee === currentUser?.id ||
+    (currentUser?.email && taskToEdit.assignee.toLowerCase() === currentUser.email.toLowerCase())
+  ));
   const canEditBody = !taskToEdit?.id || isCreator;
+  const canChangeStatus = canEditBody || isAssignee;
+  const canSave = canEditBody || isAssignee;
 
   useEffect(() => {
     if (!isOpen) {
@@ -313,11 +320,13 @@ export default function TaskModal({
     }
 
     if (!canEditBody && taskToEdit?.id) {
-      onSave({
-        ...taskToEdit,
-        status: formData.status,
-        comments: finalComments
-      });
+      if (canChangeStatus) {
+        onSave({
+          ...taskToEdit,
+          status: formData.status,
+          comments: finalComments
+        });
+      }
       onClose();
       return;
     }
@@ -379,7 +388,9 @@ export default function TaskModal({
             {!canEditBody && (
               <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
                 <Lock className="w-3 h-3 text-amber-600" />
-                Solo lectura (Creado por {taskToEdit?.createdByName || "otro usuario"})
+                {isAssignee 
+                  ? "Asignada a ti (Puedes mover de estado)" 
+                  : `Solo lectura (${taskToEdit?.createdByName ? `Creado por ${taskToEdit.createdByName}` : "Sin permisos de edición"})`}
               </span>
             )}
           </div>
@@ -439,13 +450,19 @@ export default function TaskModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Estado
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Estado</span>
+                {!canChangeStatus && <span className="text-[10px] text-slate-400 font-normal">Bloqueado</span>}
               </label>
               <select
+                disabled={!canChangeStatus}
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className={`w-full px-3 py-2 rounded-xl border text-sm ${
+                  canChangeStatus
+                    ? "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    : "bg-slate-100/70 border-slate-200 text-slate-700 cursor-not-allowed"
+                }`}
               >
                 {DEFAULT_COLUMNS.map((col) => (
                   <option key={col.id} value={col.id}>
@@ -829,16 +846,18 @@ export default function TaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Cerrar
             </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-            >
-              {taskToEdit?.id ? "Guardar Cambios" : "Crear Tarea"}
-            </button>
+            {canSave && (
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+              >
+                {taskToEdit?.id ? "Guardar Cambios" : "Crear Tarea"}
+              </button>
+            )}
           </div>
         </form>
       </div>
