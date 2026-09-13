@@ -1011,6 +1011,7 @@ export default function App() {
             tasks={tasks} 
             members={currentProject?.members || []} 
             currentUser={currentUser} 
+            sprints={sprints}
           />
         ) : (
           <>

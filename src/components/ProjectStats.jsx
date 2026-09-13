@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
 import { 
   Trophy, Activity, Target, CheckCircle2, ListTodo, 
-  AlertTriangle, Users, Bug, Zap, Bookmark, CheckSquare, Clock, Medal
+  AlertTriangle, Users, Bug, Zap, Bookmark, CheckSquare, Clock, Medal,
+  Layers, Calendar, Flag
 } from 'lucide-react';
 import { PRIORITIES, ISSUE_TYPES } from '../types/constants';
 
@@ -52,7 +53,21 @@ const isInProgress = (status) => {
          s === "doing";
 };
 
-export default function ProjectStats({ tasks = [], members = [], currentUser = null }) {
+export default function ProjectStats({ 
+  tasks = [], 
+  members = [], 
+  currentUser = null,
+  sprints = [] 
+}) {
+  const [selectedSprintId, setSelectedSprintId] = useState("all");
+
+  const filteredTasks = useMemo(() => {
+    if (selectedSprintId === "all") return tasks;
+    if (selectedSprintId === "backlog") return tasks.filter(t => !t.sprintId);
+    return tasks.filter(t => t.sprintId === selectedSprintId);
+  }, [tasks, selectedSprintId]);
+
+  const selectedSprintObj = sprints.find(s => s.id === selectedSprintId);
   
   // 1. Unificar lista de miembros canónicos (incluyendo usuario actual si aplica)
   const canonicalMembers = useMemo(() => {
@@ -106,17 +121,17 @@ export default function ProjectStats({ tasks = [], members = [], currentUser = n
     };
   };
 
-  // 3. Resumen General de Tareas
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => isDone(t.status)).length;
-  const inProgressTasks = tasks.filter(t => isInProgress(t.status)).length;
-  const reviewTasks = tasks.filter(t => isReview(t.status)).length;
-  const todoTasks = tasks.filter(t => !isDone(t.status) && !isInProgress(t.status) && !isReview(t.status)).length;
+  // 3. Resumen General de Tareas (filtradas por Sprint seleccionado)
+  const totalTasks = filteredTasks.length;
+  const completedTasks = filteredTasks.filter(t => isDone(t.status)).length;
+  const inProgressTasks = filteredTasks.filter(t => isInProgress(t.status)).length;
+  const reviewTasks = filteredTasks.filter(t => isReview(t.status)).length;
+  const todoTasks = filteredTasks.filter(t => !isDone(t.status) && !isInProgress(t.status) && !isReview(t.status)).length;
   const progressPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
   // Tareas vencidas / en riesgo
   const now = new Date();
-  const overdueTasks = tasks.filter(t => {
+  const overdueTasks = filteredTasks.filter(t => {
     if (!t.dueDate || isDone(t.status)) return false;
     const due = new Date(t.dueDate);
     due.setHours(23, 59, 59, 999);
@@ -124,7 +139,7 @@ export default function ProjectStats({ tasks = [], members = [], currentUser = n
   });
 
   // Tareas sin asignar
-  const unassignedTasks = tasks.filter(t => !t.assignee || t.assignee === 'Sin asignar');
+  const unassignedTasks = filteredTasks.filter(t => !t.assignee || t.assignee === 'Sin asignar');
 
   // 4. Datos para Gráfico Circular (Donut Chart)
   const pieData = [
@@ -153,7 +168,7 @@ export default function ProjectStats({ tasks = [], members = [], currentUser = n
   });
 
   // Procesar cada tarea y acumular en el usuario canónico
-  tasks.forEach(t => {
+  filteredTasks.forEach(t => {
     const rawAssignee = t.assignee;
     if (!rawAssignee || rawAssignee === 'Sin asignar') return;
 
@@ -200,7 +215,7 @@ export default function ProjectStats({ tasks = [], members = [], currentUser = n
 
   // 6. Distribución por Prioridad
   const priorityCounts = { urgent: 0, high: 0, medium: 0, low: 0 };
-  tasks.forEach(t => {
+  filteredTasks.forEach(t => {
     const p = t.priority || 'medium';
     if (priorityCounts[p] !== undefined) priorityCounts[p]++;
     else priorityCounts.medium++;
@@ -208,15 +223,113 @@ export default function ProjectStats({ tasks = [], members = [], currentUser = n
 
   // 7. Distribución por Tipo de Tarea
   const typeCounts = { task: 0, bug: 0, story: 0, improvement: 0 };
-  tasks.forEach(t => {
+  filteredTasks.forEach(t => {
     const tp = t.type || 'task';
     if (typeCounts[tp] !== undefined) typeCounts[tp]++;
     else typeCounts.task++;
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
+    <div className="space-y-5 animate-in fade-in duration-300 pb-12">
       
+      {/* ---------------- SELECTOR Y FILTRO DE SPRINTS PARA MÉTRICAS ---------------- */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1 shrink-0">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span>Ver Métricas de:</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSelectedSprintId("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedSprintId === "all"
+                    ? "bg-blue-600 text-white shadow-xs shadow-blue-500/20"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                }`}
+              >
+                📊 Todo el Proyecto ({tasks.length})
+              </button>
+
+              {sprints.map((s) => {
+                const count = tasks.filter(t => t.sprintId === s.id).length;
+                const isSelected = selectedSprintId === s.id;
+                const statusDot = 
+                  s.status === "active" ? "bg-emerald-500" :
+                  s.status === "planned" ? "bg-blue-500" : "bg-slate-400";
+
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSelectedSprintId(s.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${statusDot}`}></span>
+                    <span>{s.name}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                      isSelected ? "bg-slate-800 text-slate-200" : "bg-white text-slate-500 border border-slate-200"
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setSelectedSprintId("backlog")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedSprintId === "backlog"
+                    ? "bg-amber-600 text-white shadow-xs shadow-amber-500/20"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                }`}
+              >
+                Backlog / Sin Sprint ({tasks.filter(t => !t.sprintId).length})
+              </button>
+            </div>
+          </div>
+
+          {selectedSprintObj && (
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 shrink-0">
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                selectedSprintObj.status === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                selectedSprintObj.status === "planned" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                "bg-slate-100 text-slate-600 border border-slate-200"
+              }`}>
+                {selectedSprintObj.status === "active" ? "Sprint Activo" : selectedSprintObj.status === "planned" ? "Sprint Planificado" : "Sprint Cerrado"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Objetivo y Fechas del Sprint */}
+        {selectedSprintObj && (
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3 text-xs text-slate-500 flex-wrap">
+            {selectedSprintObj.goal ? (
+              <span className="text-slate-600 italic">
+                🎯 Objetivo: “{selectedSprintObj.goal}”
+              </span>
+            ) : <span />}
+
+            {(selectedSprintObj.startDate || selectedSprintObj.endDate) && (
+              <div className="flex items-center gap-1.5 font-medium text-slate-500">
+                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                <span>{selectedSprintObj.startDate || "Inicio indefinido"} al {selectedSprintObj.endDate || "Fin indefinido"}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* ---------------- FILA 1: TARJETAS DE RESUMEN Y KPIS ---------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
         
