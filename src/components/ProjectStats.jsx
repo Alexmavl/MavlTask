@@ -6,7 +6,7 @@ import {
 import { 
   Trophy, Activity, Target, CheckCircle2, ListTodo, 
   AlertTriangle, Users, Bug, Zap, Bookmark, CheckSquare, Clock, Medal,
-  Layers, Calendar, Flag
+  Layers, Calendar, Flag, ChevronDown
 } from 'lucide-react';
 import { PRIORITIES, ISSUE_TYPES } from '../types/constants';
 
@@ -236,66 +236,48 @@ export default function ProjectStats({
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1 shrink-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 shrink-0">
               <Layers className="w-4 h-4 text-blue-600" />
               <span>Ver Métricas de:</span>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setSelectedSprintId("all")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedSprintId === "all"
-                    ? "bg-blue-600 text-white shadow-xs shadow-blue-500/20"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                }`}
+            <div className="relative min-w-[220px] sm:min-w-[270px]">
+              <select
+                value={selectedSprintId}
+                onChange={(e) => setSelectedSprintId(e.target.value)}
+                className="w-full appearance-none px-3.5 py-1.5 pr-8 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs sm:text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors shadow-2xs"
               >
-                📊 Todo el Proyecto ({tasks.length})
-              </button>
-
-              {sprints.map((s) => {
-                const count = tasks.filter(t => t.sprintId === s.id).length;
-                const isSelected = selectedSprintId === s.id;
-                const statusDot = 
-                  s.status === "active" ? "bg-emerald-500" :
-                  s.status === "planned" ? "bg-blue-500" : "bg-slate-400";
-
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setSelectedSprintId(s.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${statusDot}`}></span>
-                    <span>{s.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                      isSelected ? "bg-slate-800 text-slate-200" : "bg-white text-slate-500 border border-slate-200"
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => setSelectedSprintId("backlog")}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  selectedSprintId === "backlog"
-                    ? "bg-amber-600 text-white shadow-xs shadow-amber-500/20"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                }`}
-              >
-                Backlog / Sin Sprint ({tasks.filter(t => !t.sprintId).length})
-              </button>
+                <option value="all">📊 Todo el Proyecto ({tasks.length})</option>
+                {sprints.map((s) => {
+                  const count = tasks.filter(t => t.sprintId === s.id).length;
+                  const statusLabel = s.status === "active" ? "Activo" : s.status === "planned" ? "Planificado" : "Cerrado";
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({statusLabel}) — {count} {count === 1 ? 'tarea' : 'tareas'}
+                    </option>
+                  );
+                })}
+                <option value="backlog">📦 Backlog / Sin Sprint ({tasks.filter(t => !t.sprintId).length})</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+
+            {selectedSprintObj && (
+              <span className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 border shadow-2xs ${
+                selectedSprintObj.status === "active"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                  : selectedSprintObj.status === "planned"
+                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  : "bg-slate-100 text-slate-700 border-slate-300"
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  selectedSprintObj.status === "active" ? "bg-emerald-500" :
+                  selectedSprintObj.status === "planned" ? "bg-blue-500" : "bg-slate-400"
+                }`}></span>
+                <span>{selectedSprintObj.status === "active" ? "Sprint Activo" : selectedSprintObj.status === "planned" ? "Sprint Planificado" : "Sprint Cerrado"}</span>
+              </span>
+            )}
           </div>
 
           {selectedSprintObj && (
