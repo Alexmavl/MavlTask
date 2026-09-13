@@ -833,21 +833,12 @@ export default function TaskModal({
             >
               Cerrar
             </button>
-            {canEditBody ? (
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-              >
-                {taskToEdit?.id ? "Guardar Cambios" : "Crear Tarea"}
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-              >
-                Guardar Estado / Comentarios
-              </button>
-            )}
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-98 transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+            >
+              {taskToEdit?.id ? "Guardar Cambios" : "Crear Tarea"}
+            </button>
           </div>
         </form>
       </div>
