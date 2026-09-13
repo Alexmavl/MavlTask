@@ -14,7 +14,8 @@ import {
   Lock,
   Paperclip,
   UploadCloud,
-  Check
+  Check,
+  Layers
 } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES, DEFAULT_COLUMNS } from "../types/constants";
 import UserSelect from "./UserSelect";
@@ -68,8 +69,17 @@ export default function TaskModal({
   onSave, 
   taskToEdit, 
   members = [], 
-  currentUser 
+  currentUser,
+  sprints = [],
+  selectedSprintId = ""
 }) {
+  const getInitialSprintId = () => {
+    if (taskToEdit?.sprintId !== undefined) return taskToEdit.sprintId || "";
+    if (selectedSprintId && selectedSprintId !== "all" && selectedSprintId !== "backlog") return selectedSprintId;
+    const active = sprints.find(s => s.status === "active");
+    return active ? active.id : (sprints[0]?.id || "");
+  };
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -80,7 +90,8 @@ export default function TaskModal({
     dueDate: "",
     referenceUrl: "",
     tagsInput: "",
-    images: []
+    images: [],
+    sprintId: ""
   });
 
   const [comments, setComments] = useState([]);
@@ -108,6 +119,9 @@ export default function TaskModal({
 
     const currentId = taskToEdit?.id || null;
     const isDifferentTask = currentId !== prevTaskIdRef.current;
+    const targetSprint = taskToEdit?.sprintId !== undefined 
+      ? (taskToEdit.sprintId || "") 
+      : ((selectedSprintId && selectedSprintId !== "all" && selectedSprintId !== "backlog") ? selectedSprintId : (sprints.find(s => s.status === "active")?.id || sprints[0]?.id || ""));
 
     if (taskToEdit) {
       if (isDifferentTask) {
@@ -121,7 +135,8 @@ export default function TaskModal({
           dueDate: taskToEdit.dueDate || "",
           referenceUrl: taskToEdit.referenceUrl || "",
           tagsInput: (taskToEdit.tags || []).join(", "),
-          images: taskToEdit.images || []
+          images: taskToEdit.images || [],
+          sprintId: targetSprint
         });
         setComments(taskToEdit.comments || []);
         setNewCommentText("");
@@ -141,14 +156,15 @@ export default function TaskModal({
         dueDate: "",
         referenceUrl: "",
         tagsInput: "",
-        images: []
+        images: [],
+        sprintId: targetSprint
       });
       setComments([]);
       setNewCommentText("");
       setCommentImages([]);
     }
     prevTaskIdRef.current = currentId;
-  }, [taskToEdit, isOpen, currentUser]);
+  }, [taskToEdit, isOpen, currentUser, selectedSprintId, sprints]);
 
   // Procesar archivos con compresión a Base64
   const processFiles = async (files, isComment = false) => {
@@ -346,6 +362,7 @@ export default function TaskModal({
       referenceUrl: formData.referenceUrl.trim() || "",
       images: formData.images || [],
       tags: tags || [],
+      sprintId: formData.sprintId || null,
       comments: finalComments || [],
       createdBy: taskToEdit?.createdBy || currentUser?.id || null,
       createdByName: taskToEdit?.createdByName || currentUser?.name || "Usuario"
@@ -610,8 +627,8 @@ export default function TaskModal({
             )}
           </div>
 
-          {/* Asignado y Fecha límite */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Asignado, Fecha límite y Sprint */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-blue-600" />
@@ -658,6 +675,30 @@ export default function TaskModal({
                     : "bg-slate-100/70 border-slate-200 text-slate-700 cursor-not-allowed"
                 }`}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-blue-600" />
+                Sprint
+              </label>
+              <select
+                disabled={!canEditBody}
+                value={formData.sprintId || ""}
+                onChange={(e) => setFormData({ ...formData, sprintId: e.target.value })}
+                className={`w-full px-3 py-2 rounded-xl border text-sm ${
+                  canEditBody 
+                    ? "bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    : "bg-slate-100/70 border-slate-200 text-slate-700 cursor-not-allowed"
+                }`}
+              >
+                <option value="">Sin Sprint (Backlog)</option>
+                {sprints.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status === "active" ? "Activo" : s.status === "planned" ? "Planificado" : "Cerrado"})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -10,11 +10,12 @@ import {
   Clock,
   ExternalLink,
   MessageSquare,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Layers
 } from "lucide-react";
 import { PRIORITIES, ISSUE_TYPES } from "../types/constants";
 
-export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, currentUser, members }) {
+export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, currentUser, members, sprints = [] }) {
   const priorityInfo = PRIORITIES[task.priority] || PRIORITIES.medium;
   const typeInfo = ISSUE_TYPES[task.type] || ISSUE_TYPES.task;
 
@@ -34,6 +35,7 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
   const taskImagesCount = (task.images || []).length;
   const totalImagesCount = taskImagesCount + commentImagesCount;
   const isCreator = !task.createdBy || task.createdBy === currentUser?.id || task.createdBy === currentUser?.name;
+  const sprintObj = sprints.find(s => s.id === task.sprintId);
 
   return (
     <div
@@ -52,13 +54,22 @@ export default function TaskCard({ task, onEdit, onDelete, provided, snapshot, c
     >
       {/* Cabecera de la tarjeta */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span title={typeInfo.label} className="p-1 rounded-md bg-slate-100 border border-slate-200">
             {getIcon(task.type)}
           </span>
           <span className="text-xs font-mono font-bold text-blue-600">
             {task.taskCode || task.code || task.id}
           </span>
+          {sprintObj && (
+            <span 
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/80 flex items-center gap-1"
+              title={`Sprint: ${sprintObj.name}`}
+            >
+              <Layers className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
+              <span className="truncate max-w-[85px]">{sprintObj.name}</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

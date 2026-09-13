@@ -242,3 +242,21 @@ export function saveLocalTasksByProject(projectId, tasks) {
     console.error("Error guardando tareas localmente (posible cuota excedida de LocalStorage):", err);
   }
 }
+
+const SPRINT_KEY_PREFIX = "mavltask_project_sprints_";
+
+export function getLocalSprintsByProject(projectId) {
+  try {
+    const raw = localStorage.getItem(SPRINT_KEY_PREFIX + projectId);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return [];
+}
+
+export function saveLocalSprintsByProject(projectId, sprints) {
+  try {
+    localStorage.setItem(SPRINT_KEY_PREFIX + projectId, JSON.stringify(sprints));
+  } catch (err) {
+    console.error("Error guardando sprints localmente:", err);
+  }
+}

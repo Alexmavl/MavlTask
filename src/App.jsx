@@ -13,10 +13,17 @@ import {
   Users,
   FileSpreadsheet,
   BarChart3,
-  Download
+  Download,
+  Layers,
+  Flag,
+  CheckCircle2,
+  Clock,
+  Calendar,
+  Edit3
 } from "lucide-react";
 import TaskCard from "./components/TaskCard";
 import TaskModal from "./components/TaskModal";
+import SprintModal from "./components/SprintModal";
 
 import ProjectModal from "./components/ProjectModal";
 import ShareProjectModal from "./components/ShareProjectModal";
@@ -31,6 +38,8 @@ import { DEFAULT_COLUMNS, PRIORITIES, ISSUE_TYPES, getInitialTasks } from "./typ
 import { 
   getLocalTasksByProject, 
   saveLocalTasksByProject,
+  getLocalSprintsByProject,
+  saveLocalSprintsByProject,
   getLocalProjects,
   saveLocalProjects,
   getUserProfile,
@@ -57,6 +66,12 @@ export default function App() {
   const [currentProject, setCurrentProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+
+  // Estados de Sprints
+  const [sprints, setSprints] = useState([]);
+  const [selectedSprintId, setSelectedSprintId] = useState("all"); // "all", "backlog", or sprint.id
+  const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
+  const [sprintToEdit, setSprintToEdit] = useState(null);
 
   // Estados de Filtros y Búsqueda
   const [searchTerm, setSearchTerm] = useState("");
@@ -248,6 +263,127 @@ export default function App() {
       }
     }
   }, [currentProject, isFirebaseConnected]);
+
+  // Al cambiar de proyecto, reiniciar selección de sprint
+  useEffect(() => {
+    setSelectedSprintId("all");
+  }, [currentProject?.id]);
+
+  // Sincronización de Sprints del Proyecto
+  useEffect(() => {
+    if (!currentProject) return;
+
+    const db = initFirebase();
+    if (db && isFirebaseConnected) {
+      const q = query(
+        collection(db, "sprints"),
+        where("projectId", "==", currentProject.id)
+      );
+
+      const unsubSprints = onSnapshot(q, (snapshot) => {
+        const remoteSprints = snapshot.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        }));
+
+        remoteSprints.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeA - timeB;
+        });
+
+        setSprints(remoteSprints);
+      });
+
+      return () => unsubSprints();
+    } else {
+      const local = getLocalSprintsByProject(currentProject.id);
+      setSprints(local);
+    }
+  }, [currentProject, isFirebaseConnected]);
+
+  const updateSprintsState = (newSprints) => {
+    setSprints(newSprints);
+    if (!isFirebaseConnected && currentProject) {
+      saveLocalSprintsByProject(currentProject.id, newSprints);
+    }
+  };
+
+  const handleSaveSprint = async (sprintData) => {
+    if (!currentProject) return;
+
+    if (sprintData.id) {
+      // Editar sprint existente
+      if (isFirebaseConnected) {
+        const db = initFirebase();
+        if (db) {
+          try {
+            const sprintDoc = doc(db, "sprints", sprintData.id);
+            const { id, ...cleanData } = sprintData;
+            const sanitizedData = JSON.parse(JSON.stringify(cleanData, (k, v) => v === undefined ? null : v));
+            await updateDoc(sprintDoc, sanitizedData);
+          } catch (err) {
+            console.error("Error al actualizar sprint en Firebase:", err);
+            alert("Error al actualizar sprint: " + (err.message || "Error"));
+          }
+        }
+      } else {
+        const updated = sprints.map(s => s.id === sprintData.id ? sprintData : s);
+        updateSprintsState(updated);
+      }
+    } else {
+      // Crear nuevo sprint
+      const newSprint = {
+        ...sprintData,
+        projectId: currentProject.id,
+        createdAt: new Date().toISOString()
+      };
+
+      if (isFirebaseConnected) {
+        const db = initFirebase();
+        if (db) {
+          try {
+            const { id, ...cleanData } = newSprint;
+            const sanitizedData = JSON.parse(JSON.stringify(cleanData, (k, v) => v === undefined ? null : v));
+            const docRef = await addDoc(collection(db, "sprints"), sanitizedData);
+            setSelectedSprintId(docRef.id);
+          } catch (err) {
+            console.error("Error al crear sprint en Firebase:", err);
+            alert("Error al crear sprint: " + (err.message || "Error"));
+          }
+        }
+      } else {
+        const id = "sprint_" + Date.now().toString().slice(-4);
+        const fullSprint = { id, ...newSprint };
+        const updated = [...sprints, fullSprint];
+        updateSprintsState(updated);
+        setSelectedSprintId(id);
+      }
+    }
+  };
+
+  const handleDeleteSprint = async (sprintId) => {
+    if (!currentProject) return;
+
+    if (isFirebaseConnected) {
+      const db = initFirebase();
+      if (db) {
+        try {
+          await deleteDoc(doc(db, "sprints", sprintId));
+        } catch (err) {
+          console.error("Error al eliminar sprint en Firebase:", err);
+          alert("Error al eliminar sprint: " + (err.message || "Error"));
+        }
+      }
+    } else {
+      const updated = sprints.filter(s => s.id !== sprintId);
+      updateSprintsState(updated);
+    }
+
+    if (selectedSprintId === sprintId) {
+      setSelectedSprintId("all");
+    }
+  };
 
   const updateTasksState = (newTasks) => {
     setTasks(newTasks);
@@ -557,8 +693,12 @@ export default function App() {
     const matchesPriority = selectedPriority === "all" || task.priority === selectedPriority;
     const matchesType = selectedType === "all" || task.type === selectedType;
     const matchesAssignee = selectedAssignee === "all" || task.assignee === selectedAssignee;
+    const matchesSprint = 
+      selectedSprintId === "all" ? true :
+      selectedSprintId === "backlog" ? (!task.sprintId) :
+      task.sprintId === selectedSprintId;
 
-    return matchesSearch && matchesPriority && matchesType && matchesAssignee;
+    return matchesSearch && matchesPriority && matchesType && matchesAssignee && matchesSprint;
   });
 
   const getTasksByStatus = (statusId) => {
@@ -568,7 +708,10 @@ export default function App() {
   const activeFiltersCount = (selectedPriority !== "all" ? 1 : 0) + 
                              (selectedType !== "all" ? 1 : 0) + 
                              (selectedAssignee !== "all" ? 1 : 0) +
+                             (selectedSprintId !== "all" ? 1 : 0) +
                              (searchTerm ? 1 : 0);
+
+  const selectedSprintObj = sprints.find(s => s.id === selectedSprintId);
 
   if (currentUser.isAnonymous) {
     return <LoginScreen onLoginSuccess={setCurrentUser} />;
@@ -870,72 +1013,197 @@ export default function App() {
             currentUser={currentUser} 
           />
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">
-              {DEFAULT_COLUMNS.map((col) => {
-                const colTasks = getTasksByStatus(col.id);
-
-              return (
-                <div
-                  key={col.id}
-                  className="flex flex-col rounded-2xl bg-slate-200/60 border border-slate-200 p-2.5 sm:p-3 min-h-[360px] sm:min-h-[500px]"
-                >
-                  {/* Encabezado de Columna */}
-                  <div className="flex items-center justify-between px-1.5 py-1.5 mb-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border ${col.color}`}>
-                        {col.title}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-                        {colTasks.length}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setTaskToEdit({ status: col.id });
-                        setIsTaskModalOpen(true);
-                      }}
-                      className="p-1 hover:bg-slate-300/60 text-slate-500 hover:text-blue-600 rounded-lg transition-colors"
-                      title="Agregar tarea a esta columna"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+          <>
+            {/* Barra de Gestión de Sprints (Solo en Vista Kanban) */}
+            <div className="mb-4 bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                
+                {/* Selector de Sprint & Tabs */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1 shrink-0">
+                    <Layers className="w-4 h-4 text-blue-600" />
+                    <span>Sprint:</span>
                   </div>
 
-                  {/* Lista de Tarjetas */}
-                  <Droppable droppableId={col.id}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`flex-1 flex flex-col gap-2 p-1 rounded-xl transition-colors duration-200 ${
-                          snapshot.isDraggingOver ? "bg-blue-100/50 ring-2 ring-blue-400" : ""
-                        }`}
+                  {/* Pills / Botones de Filtro de Sprint */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => setSelectedSprintId("all")}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        selectedSprintId === "all"
+                          ? "bg-blue-600 text-white shadow-xs shadow-blue-500/20"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      Todos ({tasks.length})
+                    </button>
+
+                    {sprints.map((s) => {
+                      const count = tasks.filter(t => t.sprintId === s.id).length;
+                      const isSelected = selectedSprintId === s.id;
+                      const statusDot = 
+                        s.status === "active" ? "bg-emerald-500" :
+                        s.status === "planned" ? "bg-blue-500" : "bg-slate-400";
+                      
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedSprintId(s.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-slate-900 text-white shadow-xs"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${statusDot}`}></span>
+                          <span>{s.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                            isSelected ? "bg-slate-800 text-slate-200" : "bg-white text-slate-500 border border-slate-200"
+                          }`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      onClick={() => setSelectedSprintId("backlog")}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        selectedSprintId === "backlog"
+                          ? "bg-amber-600 text-white shadow-xs shadow-amber-500/20"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      Backlog / Sin Sprint ({tasks.filter(t => !t.sprintId).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Acciones de Sprint */}
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  {selectedSprintObj && (
+                    <button
+                      onClick={() => {
+                        setSprintToEdit(selectedSprintObj);
+                        setIsSprintModalOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer"
+                      title={`Editar ${selectedSprintObj.name}`}
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Editar Sprint</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setSprintToEdit(null);
+                      setIsSprintModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-xl transition-all shadow-2xs cursor-pointer"
+                    title="Crear un nuevo sprint para este proyecto"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Nuevo Sprint</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Fila secundaria con Goal y Fechas del Sprint seleccionado */}
+              {selectedSprintObj && (
+                <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3 text-xs text-slate-500 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                      selectedSprintObj.status === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                      selectedSprintObj.status === "planned" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                      "bg-slate-100 text-slate-600 border border-slate-200"
+                    }`}>
+                      {selectedSprintObj.status === "active" ? "Activo" : selectedSprintObj.status === "planned" ? "Planificado" : "Cerrado"}
+                    </span>
+                    {selectedSprintObj.goal && (
+                      <span className="text-slate-600 italic">
+                        “{selectedSprintObj.goal}”
+                      </span>
+                    )}
+                  </div>
+
+                  {(selectedSprintObj.startDate || selectedSprintObj.endDate) && (
+                    <div className="flex items-center gap-1.5 font-medium text-slate-500 shrink-0">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{selectedSprintObj.startDate || "Inicio indefinido"} al {selectedSprintObj.endDate || "Fin indefinido"}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="grid grid-flow-row sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 min-w-[280px]">
+                {DEFAULT_COLUMNS.map((col) => {
+                  const colTasks = getTasksByStatus(col.id);
+
+                return (
+                  <div
+                    key={col.id}
+                    className="flex flex-col rounded-2xl bg-slate-200/60 border border-slate-200 p-2.5 sm:p-3 min-h-[360px] sm:min-h-[500px]"
+                  >
+                    {/* Encabezado de Columna */}
+                    <div className="flex items-center justify-between px-1.5 py-1.5 mb-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border ${col.color}`}>
+                          {col.title}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+                          {colTasks.length}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setTaskToEdit({ status: col.id });
+                          setIsTaskModalOpen(true);
+                        }}
+                        className="p-1 hover:bg-slate-300/60 text-slate-500 hover:text-blue-600 rounded-lg transition-colors"
+                        title="Agregar tarea a esta columna"
                       >
-                        {colTasks.map((task, index) => (
-                          <Draggable
-                            key={task.id}
-                            draggableId={task.id}
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <TaskCard
-                                task={task}
-                                provided={provided}
-                                snapshot={snapshot}
-                                currentUser={currentUser}
-                                members={currentProject?.members || []}
-                                onEdit={(task) => {
-                                  setTaskToEdit(task);
-                                  setIsTaskModalOpen(true);
-                                }}
-                                onDelete={handleDeleteTask}
-                              />
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Lista de Tarjetas */}
+                    <Droppable droppableId={col.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`flex-1 flex flex-col gap-2 p-1 rounded-xl transition-colors duration-200 ${
+                            snapshot.isDraggingOver ? "bg-blue-100/50 ring-2 ring-blue-400" : ""
+                          }`}
+                        >
+                          {colTasks.map((task, index) => (
+                            <Draggable
+                              key={task.id}
+                              draggableId={task.id}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <TaskCard
+                                  task={task}
+                                  provided={provided}
+                                  snapshot={snapshot}
+                                  currentUser={currentUser}
+                                  members={currentProject?.members || []}
+                                  sprints={sprints}
+                                  onEdit={(task) => {
+                                    setTaskToEdit(task);
+                                    setIsTaskModalOpen(true);
+                                  }}
+                                  onDelete={handleDeleteTask}
+                                />
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
 
                         {colTasks.length === 0 && !snapshot.isDraggingOver && (
                           <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 text-center border border-dashed border-slate-300 rounded-xl min-h-[80px]">
@@ -950,6 +1218,7 @@ export default function App() {
             })}
           </div>
         </DragDropContext>
+        </>
         )}
       </main>
 
@@ -996,6 +1265,16 @@ export default function App() {
         taskToEdit={taskToEdit}
         members={currentProject?.members || []}
         currentUser={currentUser}
+        sprints={sprints}
+        selectedSprintId={selectedSprintId}
+      />
+
+      <SprintModal
+        isOpen={isSprintModalOpen}
+        onClose={() => setIsSprintModalOpen(false)}
+        onSaveSprint={handleSaveSprint}
+        onDeleteSprint={handleDeleteSprint}
+        sprintToEdit={sprintToEdit}
       />
 
       <ProjectModal
