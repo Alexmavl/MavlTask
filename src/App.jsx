@@ -954,7 +954,7 @@ export default function App() {
       </main>
 
       {/* Botón Flotante (FAB) para Móvil */}
-      <div className="fixed bottom-6 right-6 z-40 sm:hidden">
+      <div className="fixed bottom-16 right-5 z-40 sm:hidden">
         <button
           onClick={() => {
             setTaskToEdit(null);
@@ -967,8 +967,8 @@ export default function App() {
         </button>
       </div>
 
-      {/* Footer MavlTask en Azul Marino (#0b192c) */}
-      <footer className="py-2.5 sm:py-3 px-4 sm:px-6 border-t border-[#1e3a5f] bg-[#0b192c] text-center text-[11px] sm:text-xs text-slate-300 shadow-inner">
+      {/* Footer MavlTask en Azul Marino (#0b192c) Anclado */}
+      <footer className="sticky bottom-0 z-30 py-2 sm:py-2.5 px-4 sm:px-6 border-t border-[#1e3a5f] bg-[#0b192c]/95 backdrop-blur-md text-center text-[11px] sm:text-xs text-slate-300 shadow-lg shadow-black/25">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2">
             <span className="font-extrabold text-white">Mavl<span className="text-sky-400">Task</span></span>
